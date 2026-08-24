@@ -34,7 +34,7 @@ void Robot::setup() {
 }
 
 void Robot::run() {
-    colourSensor.update(elapsedLastTime);
+    colourSensor.update(elapsedLastUpdateTime);
     irSensor.update();
     imu.update();
     if (odometry != nullptr) {
@@ -42,14 +42,14 @@ void Robot::run() {
     }
 
     if (button.isPressed()) {
-        conditionallyBreakLoop(handleEdgeDetection(elapsedLastTime / 1000.0f));
-        if (elapsedLastTime >= LOOP_TIME_MS) {
-            float dt = elapsedLastTime / 1000.0f;
-            elapsedLastTime = 0;
+        float updateDt = elapsedLastUpdateTime / 1000000.0f;
+        handleHeadingCorrection(updateDt, targetHeading);
+        conditionallyBreakLoop(handleEdgeDetection(updateDt));
 
-            handleTargetHeading();
-            handleHeadingCorrection(dt, targetHeading);
-            
+        if (elapsedLastLoopTime >= LOOP_TIME_MS) {
+            float dt = elapsedLastLoopTime / 1000.0f;
+            elapsedLastLoopTime = 0;
+
             maneuverAroundBall(dt, 0);
             // drive.moveInDirection(dt, irSensor.getDirectionDegrees(), 100);
             // drive.motor1.setMotorRPM(100, dt);
@@ -62,6 +62,7 @@ void Robot::run() {
         }
     }
 
+    elapsedLastUpdateTime = 0;
     logger.update([this](Logger &log) {
         log.log("dir", irSensor.getDirectionDegrees());
         log.log("str", irSensor.getSignalStrength());
@@ -88,11 +89,10 @@ bool Robot::handleEdgeDetection(float dt) {
         elapsedEscapeTime = 0;
     }
 
-    // if ((elapsedEscapeTime - ESCAPE_DURATION) >= ESCAPE_BUFFER) {
-    //     return false;
-    // } else if (elapsedEscapeTime >= ESCAPE_DURATION) {
-    //     drive.stop();
-    // }
+    if ((elapsedEscapeTime - ESCAPE_DURATION) <= ESCAPE_BUFFER &&
+        (elapsedEscapeTime - ESCAPE_DURATION) >= 0) {
+        drive.stop();
+    }
     if (elapsedEscapeTime >= ESCAPE_DURATION) {
         return false;
     }
@@ -111,8 +111,8 @@ void Robot::handleHeadingCorrection(const float dt, const float targetHeading) {
 
 void Robot::handleTargetHeading() {
     targetHeading = 0;
-    if (robotState == State::ORBIT && abs(irSensor.getDirectionDegrees()) <= BALL_TILT_RANGE) {
-        targetHeading = constrain(irSensor.getDirectionDegrees(), -EXIT_ALIGNMENT_TOLERANCE, EXIT_ALIGNMENT_TOLERANCE);
+    if (abs(irSensor.getDirectionDegrees()) <= BALL_TILT_RANGE) {
+        targetHeading = constrain(-irSensor.getDirectionDegrees(), -BALL_TILT_MAX, BALL_TILT_MAX);
     }
 }
 
@@ -134,7 +134,8 @@ void Robot::maneuverAroundBall(const float dt, const float targetBallHeading) {
             break;
         }
         case ORBIT: {
-            float headingError = util::wrapAngle180(irSensor.getDirectionDegrees() - targetBallHeading + targetHeading);
+            handleTargetHeading();
+            float headingError = util::wrapAngle180(irSensor.getDirectionDegrees() - targetBallHeading - targetHeading);
             float distanceError = ORBIT_DISTANCE - irSensor.getSignalStrength();
 
             float approach = orbitDistancePID.adjustmentValue(dt, distanceError);
@@ -158,9 +159,12 @@ void Robot::maneuverAroundBall(const float dt, const float targetBallHeading) {
             break;
         }
         case CAPTURED: {
+            targetHeading = 0;
             float alignedTime = (accumulatedAlignedTime - ALIGNED_DEBOUNCE_MS);
             float speed = CAPTURED_MIN_SPD + min(alignedTime + 100 / SPEED_RAMP_MAX_MS, 1.0f) * (CAPTURED_MAX_SPD - CAPTURED_MIN_SPD);
-            drive.moveInDirection(dt, irSensor.getDirectionDegrees(), speed);
+            float direction = (abs(irSensor.getDirectionDegrees()) <= HEADING_DEADBAND) ? 0 : irSensor.getDirectionDegrees();
+
+            drive.moveInDirection(dt, direction, speed);
             break;
         }
     }
