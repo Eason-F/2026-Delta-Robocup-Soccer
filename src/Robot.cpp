@@ -43,7 +43,6 @@ void Robot::run() {
 
     if (button.isPressed()) {
         float updateDt = elapsedLastUpdateTime / 1000000.0f;
-        // handleTargetHeading();
         handleHeadingCorrection(updateDt, targetHeading);
         conditionallyBreakLoop(handleEdgeDetection(updateDt));
 
@@ -112,8 +111,8 @@ void Robot::handleHeadingCorrection(const float dt, const float targetHeading) {
 
 void Robot::handleTargetHeading() {
     targetHeading = 0;
-    if (robotState == State::ORBIT && abs(irSensor.getDirectionDegrees()) <= BALL_TILT_RANGE) {
-        targetHeading = constrain(irSensor.getDirectionDegrees(), -BALL_TILT_MAX, BALL_TILT_MAX);
+    if (abs(irSensor.getDirectionDegrees()) <= BALL_TILT_RANGE) {
+        targetHeading = constrain(-irSensor.getDirectionDegrees(), -BALL_TILT_MAX, BALL_TILT_MAX);
     }
 }
 
@@ -135,7 +134,8 @@ void Robot::maneuverAroundBall(const float dt, const float targetBallHeading) {
             break;
         }
         case ORBIT: {
-            float headingError = util::wrapAngle180(irSensor.getDirectionDegrees() - targetBallHeading + targetHeading);
+            handleTargetHeading();
+            float headingError = util::wrapAngle180(irSensor.getDirectionDegrees() - targetBallHeading - targetHeading);
             float distanceError = ORBIT_DISTANCE - irSensor.getSignalStrength();
 
             float approach = orbitDistancePID.adjustmentValue(dt, distanceError);
@@ -159,6 +159,7 @@ void Robot::maneuverAroundBall(const float dt, const float targetBallHeading) {
             break;
         }
         case CAPTURED: {
+            targetHeading = 0;
             float alignedTime = (accumulatedAlignedTime - ALIGNED_DEBOUNCE_MS);
             float speed = CAPTURED_MIN_SPD + min(alignedTime + 100 / SPEED_RAMP_MAX_MS, 1.0f) * (CAPTURED_MAX_SPD - CAPTURED_MIN_SPD);
             float direction = (abs(irSensor.getDirectionDegrees()) <= HEADING_DEADBAND) ? 0 : irSensor.getDirectionDegrees();
