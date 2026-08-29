@@ -38,14 +38,14 @@ class Robot {
         void run();
 
     private:
-        static constexpr bool WITH_ODOMETRY = false;
+        static constexpr bool WITH_ODOMETRY = true;
 
         static constexpr uint8_t LOOP_TIME_MS = 15;
         static constexpr uint16_t LOG_INTERVAL_MS = 100;
         uint8_t packetSequence = 0;
         
         static constexpr uint16_t SEARCH_SPD = 100;
-        static constexpr uint16_t APPROACH_SPD = 100;
+        static constexpr uint16_t APPROACH_SPD = 130;
         
         static constexpr uint16_t ORBIT_APPROACH_SPD = 130;
         static constexpr uint16_t ORBIT_SPD = 150;
@@ -55,10 +55,10 @@ class Robot {
         static constexpr uint16_t ORBIT_DEBOUNCE_MS = 100;
         unsigned long accumulatedOrbitTime = 0;
         
-        static constexpr uint16_t CAPTURED_MAX_SPD = 160;
-        static constexpr uint16_t CAPTURED_MIN_SPD = 200;
-        static constexpr uint16_t ENTER_ALIGNMENT_TOLERANCE = 12;
-        static constexpr uint16_t EXIT_ALIGNMENT_TOLERANCE = 22;
+        static constexpr uint16_t CAPTURED_MAX_SPD = 200;
+        static constexpr uint16_t CAPTURED_MIN_SPD = 270;
+        static constexpr uint16_t ENTER_ALIGNMENT_TOLERANCE = 15;
+        static constexpr uint16_t EXIT_ALIGNMENT_TOLERANCE = 30;
         static constexpr uint16_t HEADING_DEADBAND = 7;
         static constexpr uint16_t SPEED_RAMP_MAX_MS = 1000;
         static constexpr uint16_t ALIGNED_DEBOUNCE_MS = 0;

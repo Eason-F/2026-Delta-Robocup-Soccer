@@ -54,7 +54,8 @@ void Robot::run() {
             float dt = elapsedLastLoopTime / 1000.0f;
             elapsedLastLoopTime = 0;
 
-            maneuverAroundBall(dt, 0);
+            // maneuverAroundBall(dt, 0);
+            drive.moveToPoint(dt, 130, {0, 300}, *odometry);
             // drive.moveInDirection(dt, irSensor.getDirectionDegrees(), 100);
             // drive.motor1.setMotorRPM(100, dt);
         }
