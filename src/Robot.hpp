@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include <memory>
 
+#include <communication/RobotCommunication.hpp>
+#include <communication/uart/UartPacketTransport.hpp>
 #include <drive/Drive.hpp>
 #include <odometry/Odometry.hpp>
 #include <ir/uart/UartIRSensor.hpp>
@@ -90,7 +92,9 @@ class Robot {
         void maneuverAroundBall(const float dt, const float targetBallHeading);
 
         Button button;
+        UartPacketTransport uartTransport;
         UartIRSensor irSensor;
+        RobotCommunication robotCommunication;
         Drive drive;
         IMU imu;
         std::unique_ptr<OpticalOdometry> odometry;

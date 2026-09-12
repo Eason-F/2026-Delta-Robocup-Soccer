@@ -13,7 +13,9 @@ bool Button::isPressed() {
 
 Robot::Robot()
     : button(41),
-      irSensor(Serial4),
+      uartTransport(Serial4),
+      irSensor(uartTransport),
+      robotCommunication(uartTransport),
       imu(Wire2),
       colourSensor(22),
       logger(Serial, LOG_INTERVAL_MS) {
@@ -26,7 +28,9 @@ void Robot::setup() {
     button.setup();
     colourSensor.setup();
     drive.setup();
+    uartTransport.setup();
     irSensor.setup();
+    robotCommunication.setup();
     imu.setup(); imu.resetYawOrigin();
     if (odometry != nullptr) {
         odometry-> setup();
@@ -35,7 +39,7 @@ void Robot::setup() {
 
 void Robot::run() {
     colourSensor.update(elapsedLastUpdateTime);
-    irSensor.update();
+    uartTransport.update();
     imu.update();
     if (odometry != nullptr) {
         odometry-> update();
