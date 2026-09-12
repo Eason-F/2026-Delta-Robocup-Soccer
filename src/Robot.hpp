@@ -1,6 +1,8 @@
 #include <Arduino.h>
-#include <memory>
+#include <optional>
 
+#include <communication/RobotCommunication.hpp>
+#include <communication/uart/UartPacketTransport.hpp>
 #include <drive/Drive.hpp>
 #include <odometry/Odometry.hpp>
 #include <ir/uart/UartIRSensor.hpp>
@@ -40,7 +42,7 @@ class Robot {
 
         static constexpr uint8_t LOOP_TIME_MS = 15;
         static constexpr uint16_t LOG_INTERVAL_MS = 100;
-
+        uint8_t packetSequence = 0;
         
         static constexpr uint16_t SEARCH_SPD = 100;
         static constexpr uint16_t APPROACH_SPD = 100;
@@ -89,11 +91,15 @@ class Robot {
         void checkRobotState(const float dt, const float targetBallHeading);
         void maneuverAroundBall(const float dt, const float targetBallHeading);
 
+        void sendBluetoothUpdate();
+
         Button button;
+        UartPacketTransport uartTransport;
         UartIRSensor irSensor;
+        RobotCommunication robotCommunication;
         Drive drive;
         IMU imu;
-        std::unique_ptr<OpticalOdometry> odometry;
+        std::optional<OpticalOdometry> odometry;
         ColourSensor colourSensor;
         Logger logger;
 };
