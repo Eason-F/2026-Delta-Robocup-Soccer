@@ -17,12 +17,9 @@ Robot::Robot()
       irSensor(uartTransport),
       robotCommunication(uartTransport),
       imu(Wire2),
+      odometry(Wire),
       colourSensor(22),
-      logger(Serial, LOG_INTERVAL_MS) {
-    if (WITH_ODOMETRY) {
-        odometry.emplace(Wire2);
-    }
-}
+      logger(Serial, LOG_INTERVAL_MS) {}
 
 void Robot::setup() {
     button.setup();
@@ -32,29 +29,27 @@ void Robot::setup() {
     irSensor.setup();
     robotCommunication.setup();
     imu.setup(); imu.resetYawOrigin();
-    if (odometry.has_value()) {
-        odometry->setup();
-    }
+    odometry.setup();
 }
 
 void Robot::run() {
     colourSensor.update(elapsedLastUpdateTime);
     uartTransport.update();
     imu.update();
-    if (odometry.has_value()) {
-        odometry->update();
-    }
+    odometry.update();
 
     if (button.isPressed()) {
         float updateDt = elapsedLastUpdateTime / 1000000.0f;
         handleHeadingCorrection(updateDt, targetHeading);
-        conditionallyBreakLoop(handleEdgeDetection(updateDt));
+        // conditionallyBreakLoop(handleEdgeDetection(updateDt));
 
         if (elapsedLastLoopTime >= LOOP_TIME_MS) {
             float dt = elapsedLastLoopTime / 1000.0f;
             elapsedLastLoopTime = 0;
 
-            maneuverAroundBall(dt, 0);
+            // maneuverAroundBall(dt, 0);
+            
+            // drive.moveToPoint(dt, 130, FieldConstants::friendlyGoalBoxPosition, odometry);
             // drive.moveInDirection(dt, irSensor.getDirectionDegrees(), 100);
             // drive.motor1.setMotorRPM(100, dt);
         }
@@ -62,9 +57,7 @@ void Robot::run() {
     } else {
         drive.stop();
         imu.resetYawOrigin();
-        if (odometry.has_value()) {
-            odometry->resetPosition();
-        }
+        odometry.resetPosition();
     }
 
     elapsedLastUpdateTime = 0;
@@ -76,24 +69,24 @@ void Robot::run() {
         // log.log("ballFound", irSensor.ballFound());
         // log.log("colour", colourSensor.sensorState());
 
-        // log.log("heading", imu.getRelativeYaw());
-        // log.log("odometryX", odometry.getX());
-        // log.log("odometryY", odometry.getY());
-        // log.log("odometryH", odometry.getHeading());
+        log.log("heading", imu.getRelativeYaw());
+        log.log("odometryX", odometry.getX());
+        log.log("odometryY", odometry.getY());
+        log.log("odometryH", odometry.getHeading());
 
         // log.log("rpm", drive.motor1.angularVelocityRPM);
         // log.log("movementDir", drive.lastDirection);
         
-        log.log("bltX", robotCommunication.getReceivedPacket().x);
-        log.log("bltY", robotCommunication.getReceivedPacket().y);
-        log.log("bltH", robotCommunication.getReceivedPacket().heading);
-        log.log("bltDir", robotCommunication.getReceivedPacket().ballBearing);
-        log.log("bltStr", robotCommunication.getReceivedPacket().ballStrength);
-        log.log("bltScore", robotCommunication.getReceivedPacket().attackScore);
-        log.log("bltState", robotCommunication.getReceivedPacket().state);
-        log.log("bltRole", robotCommunication.getReceivedPacket().role);
-        log.log("bltFlags", robotCommunication.getReceivedPacket().flags);
-        log.log("bltSeq", robotCommunication.getReceivedPacket().sequence);
+        // log.log("bltX", robotCommunication.getReceivedPacket().x);
+        // log.log("bltY", robotCommunication.getReceivedPacket().y);
+        // log.log("bltH", robotCommunication.getReceivedPacket().heading);
+        // log.log("bltDir", robotCommunication.getReceivedPacket().ballBearing);
+        // log.log("bltStr", robotCommunication.getReceivedPacket().ballStrength);
+        // log.log("bltScore", robotCommunication.getReceivedPacket().attackScore);
+        // log.log("bltState", robotCommunication.getReceivedPacket().state);
+        // log.log("bltRole", robotCommunication.getReceivedPacket().role);
+        // log.log("bltFlags", robotCommunication.getReceivedPacket().flags);
+        // log.log("bltSeq", robotCommunication.getReceivedPacket().sequence);
     });
 }
 
@@ -105,6 +98,7 @@ bool Robot::handleEdgeDetection(float dt) {
             escapeDirection = degrees(edgeVector.angle) + 180.0f;
         }
         elapsedEscapeTime = 0;
+        odometry.boundaryAlignOdometry(edgeVector);
     }
 
     if ((elapsedEscapeTime - ESCAPE_DURATION) <= ESCAPE_BUFFER &&
@@ -139,11 +133,7 @@ void Robot::maneuverAroundBall(const float dt, const float targetBallHeading) {
     checkRobotState(dt, targetBallHeading);
     switch (robotState) {
         case SEARCH: {
-            if (odometry.has_value()) {
-                drive.moveToPoint(dt, SEARCH_SPD, 0, 0, *odometry);
-            } else {
-                drive.moveInDirection(dt, 180, SEARCH_SPD);
-            }
+            drive.moveToPoint(dt, SEARCH_SPD, 0, 0, odometry);
             break;
         }
         case APPROACH: {
@@ -244,8 +234,8 @@ void Robot::checkRobotState(const float dt, const float targetBallHeading) {
 
 void Robot::sendBluetoothUpdate() {
     RobotPacket packet = {
-        static_cast<int16_t>(odometry-> getX()),
-        static_cast<int16_t>(odometry-> getY()),
+        static_cast<int16_t>(odometry.getX()),
+        static_cast<int16_t>(odometry.getY()),
         static_cast<int16_t>(imu.getRelativeYaw()),
         static_cast<int16_t>(irSensor.getDirectionDegrees()),
         static_cast<uint8_t>(irSensor.getSignalStrength()),

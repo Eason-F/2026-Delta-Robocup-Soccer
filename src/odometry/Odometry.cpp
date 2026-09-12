@@ -1,6 +1,8 @@
 #include <odometry/Odometry.hpp>
 #include <util/util.hpp>
 
+sfe_otos_pose2d_t OpticalOdometry::SENSOR_OFFSET = {0.0f, 0.0f, -135.0f};
+
 OpticalOdometry::OpticalOdometry(TwoWire &wirePort) : wirePort(wirePort) {}
 
 void OpticalOdometry::setup() {
@@ -10,10 +12,12 @@ void OpticalOdometry::setup() {
         LOG_PRINT("Disconnected odometry"); LOG_NEXT;
     };
     odometrySensor.calibrateImu();
-    odometrySensor.resetTracking();
-
+    
     odometrySensor.setLinearUnit(kSfeOtosLinearUnitMeters);
     odometrySensor.setAngularUnit(kSfeOtosAngularUnitDegrees);
+    odometrySensor.setOffset(SENSOR_OFFSET);
+
+    odometrySensor.resetTracking();
 }
 
 float OpticalOdometry::getX() {
@@ -33,11 +37,14 @@ void OpticalOdometry::update() {
 }
 
 void OpticalOdometry::setPosition(sfe_otos_pose2d_t &pose) {
-    odometrySensor.resetTracking();
     odometrySensor.setPosition(pose);
 }
 
 void OpticalOdometry::resetPosition() {
     odometrySensor.calibrateImu(255, true);
     odometrySensor.resetTracking();
+}
+
+void OpticalOdometry::boundaryAlignOdometry(Vector edgeVec) {
+    return;
 }

@@ -20,7 +20,7 @@ class Drive {
         PIDController motorPID3 = PIDController(motorKP, motorKI, motorKD, motorMin, motorMax);
         PIDController motorPID4 = PIDController(motorKP, motorKI, motorKD, motorMin, motorMax);
 
-        static constexpr float positionKP = 5.0f;
+        static constexpr float positionKP = 0.01f;
         static constexpr float positionKI = 0.0f;
         static constexpr float positionKD = 0.0f;
         static constexpr float positionMax = 1.0f;

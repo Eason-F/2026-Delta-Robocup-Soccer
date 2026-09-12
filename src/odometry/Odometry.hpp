@@ -3,6 +3,9 @@
 #include <SparkFun_Qwiic_OTOS_Arduino_Library.h>
 #include <Wire.h>
 
+#include <util/util.hpp>
+#include <util/Vector.hpp>
+
 class OpticalOdometry {
     public:
         OpticalOdometry(TwoWire &wirePort);
@@ -11,6 +14,7 @@ class OpticalOdometry {
         void update();
         void resetPosition();
         void setPosition(sfe_otos_pose2d_t &pose);
+        void boundaryAlignOdometry(Vector boundaryVector);
 
         float getX();
         float getY();
@@ -21,5 +25,6 @@ class OpticalOdometry {
         QwiicOTOS odometrySensor;
         sfe_otos_pose2d_t position;
 
-        static constexpr float LINEAR_MULTIPLIER = 1900.0f;
+        static constexpr float LINEAR_MULTIPLIER = 1380.0f;
+        static sfe_otos_pose2d_t SENSOR_OFFSET;
 };

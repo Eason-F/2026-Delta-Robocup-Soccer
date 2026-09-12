@@ -30,12 +30,12 @@ void Drive::moveToPoint(const float &dt, const int &rpm, const float &targetX, c
     float velocityY = positionPIDY.adjustmentValue(dt, targetY, odometry.getY()) * rpm;
     float direction = degrees(atan2(velocityX, velocityY));
     float speed = min(hypot(velocityY, velocityX), rpm);
-    // Logger::queue("vx", velocityX);
-    // Logger::queue("vy", velocityY);
-    // Logger::queue("dir", direction);
+    Logger::queue("vx", velocityX);
+    Logger::queue("vy", velocityY);
+    Logger::queue("dir", direction);
     // Logger::queue("spd", speed);
 
-    if (hypot(targetX - odometry.getX(), targetY - odometry.getY()) < 0.02f) {
+    if (hypot(targetX - odometry.getX(), targetY - odometry.getY()) < 15.0f) {
         stop(); return;
     }
     moveInDirection(dt, direction, max(speed, 40));
