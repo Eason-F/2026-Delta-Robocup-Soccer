@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include <optional>
 
 #include <communication/RobotCommunication.hpp>
 #include <communication/uart/UartPacketTransport.hpp>
@@ -38,8 +37,6 @@ class Robot {
         void run();
 
     private:
-        static constexpr bool WITH_ODOMETRY = true;
-
         static constexpr uint8_t LOOP_TIME_MS = 15;
         static constexpr uint16_t LOG_INTERVAL_MS = 100;
         uint8_t packetSequence = 0;
@@ -99,7 +96,7 @@ class Robot {
         RobotCommunication robotCommunication;
         Drive drive;
         IMU imu;
-        std::optional<OpticalOdometry> odometry;
+        OpticalOdometry odometry;
         ColourSensor colourSensor;
         Logger logger;
 };
