@@ -25,6 +25,6 @@ class OpticalOdometry {
         QwiicOTOS odometrySensor;
         sfe_otos_pose2d_t position;
 
-        static constexpr float LINEAR_MULTIPLIER = -1.9f;
+        static constexpr float LINEAR_MULTIPLIER = 1380.0f;
         static sfe_otos_pose2d_t SENSOR_OFFSET;
 };

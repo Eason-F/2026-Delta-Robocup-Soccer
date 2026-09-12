@@ -17,7 +17,7 @@ Robot::Robot()
       irSensor(uartTransport),
       robotCommunication(uartTransport),
       imu(Wire2),
-      odometry(Wire2),
+      odometry(Wire),
       colourSensor(22),
       logger(Serial, LOG_INTERVAL_MS) {}
 
@@ -41,14 +41,15 @@ void Robot::run() {
     if (button.isPressed()) {
         float updateDt = elapsedLastUpdateTime / 1000000.0f;
         handleHeadingCorrection(updateDt, targetHeading);
-        conditionallyBreakLoop(handleEdgeDetection(updateDt));
+        // conditionallyBreakLoop(handleEdgeDetection(updateDt));
 
         if (elapsedLastLoopTime >= LOOP_TIME_MS) {
             float dt = elapsedLastLoopTime / 1000.0f;
             elapsedLastLoopTime = 0;
 
             // maneuverAroundBall(dt, 0);
-            drive.moveToPoint(dt, 130, {0, 300}, odometry);
+            
+            // drive.moveToPoint(dt, 130, FieldConstants::friendlyGoalBoxPosition, odometry);
             // drive.moveInDirection(dt, irSensor.getDirectionDegrees(), 100);
             // drive.motor1.setMotorRPM(100, dt);
         }
@@ -68,24 +69,24 @@ void Robot::run() {
         // log.log("ballFound", irSensor.ballFound());
         // log.log("colour", colourSensor.sensorState());
 
-        // log.log("heading", imu.getRelativeYaw());
-        // log.log("odometryX", odometry.getX());
-        // log.log("odometryY", odometry.getY());
-        // log.log("odometryH", odometry.getHeading());
+        log.log("heading", imu.getRelativeYaw());
+        log.log("odometryX", odometry.getX());
+        log.log("odometryY", odometry.getY());
+        log.log("odometryH", odometry.getHeading());
 
         // log.log("rpm", drive.motor1.angularVelocityRPM);
         // log.log("movementDir", drive.lastDirection);
         
-        log.log("bltX", robotCommunication.getReceivedPacket().x);
-        log.log("bltY", robotCommunication.getReceivedPacket().y);
-        log.log("bltH", robotCommunication.getReceivedPacket().heading);
-        log.log("bltDir", robotCommunication.getReceivedPacket().ballBearing);
-        log.log("bltStr", robotCommunication.getReceivedPacket().ballStrength);
-        log.log("bltScore", robotCommunication.getReceivedPacket().attackScore);
-        log.log("bltState", robotCommunication.getReceivedPacket().state);
-        log.log("bltRole", robotCommunication.getReceivedPacket().role);
-        log.log("bltFlags", robotCommunication.getReceivedPacket().flags);
-        log.log("bltSeq", robotCommunication.getReceivedPacket().sequence);
+        // log.log("bltX", robotCommunication.getReceivedPacket().x);
+        // log.log("bltY", robotCommunication.getReceivedPacket().y);
+        // log.log("bltH", robotCommunication.getReceivedPacket().heading);
+        // log.log("bltDir", robotCommunication.getReceivedPacket().ballBearing);
+        // log.log("bltStr", robotCommunication.getReceivedPacket().ballStrength);
+        // log.log("bltScore", robotCommunication.getReceivedPacket().attackScore);
+        // log.log("bltState", robotCommunication.getReceivedPacket().state);
+        // log.log("bltRole", robotCommunication.getReceivedPacket().role);
+        // log.log("bltFlags", robotCommunication.getReceivedPacket().flags);
+        // log.log("bltSeq", robotCommunication.getReceivedPacket().sequence);
     });
 }
 
