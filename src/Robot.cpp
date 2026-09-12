@@ -58,6 +58,7 @@ void Robot::run() {
             // drive.moveInDirection(dt, irSensor.getDirectionDegrees(), 100);
             // drive.motor1.setMotorRPM(100, dt);
         }
+        sendBluetoothUpdate();
     } else {
         drive.stop();
         imu.resetYawOrigin();
@@ -68,18 +69,31 @@ void Robot::run() {
 
     elapsedLastUpdateTime = 0;
     logger.update([this](Logger &log) {
-        log.log("dir", irSensor.getDirectionDegrees());
-        log.log("str", irSensor.getSignalStrength());
-        log.log("movementDir", drive.lastDirection);
-        log.log("state", static_cast<int>(robotState));
+        // log.log("state", static_cast<int>(robotState));
+        
+        // log.log("dir", irSensor.getDirectionDegrees());
+        // log.log("str", irSensor.getSignalStrength());
+        // log.log("ballFound", irSensor.ballFound());
+        // log.log("colour", colourSensor.sensorState());
 
         // log.log("heading", imu.getRelativeYaw());
-        // log.log("colour", colourSensor.sensorState());
         // log.log("odometryX", odometry.getX());
         // log.log("odometryY", odometry.getY());
         // log.log("odometryH", odometry.getHeading());
+
         // log.log("rpm", drive.motor1.angularVelocityRPM);
-        // log.log("ballFound", irSensor.ballFound());
+        // log.log("movementDir", drive.lastDirection);
+        
+        log.log("bltX", robotCommunication.getReceivedPacket().x);
+        log.log("bltY", robotCommunication.getReceivedPacket().y);
+        log.log("bltH", robotCommunication.getReceivedPacket().heading);
+        log.log("bltDir", robotCommunication.getReceivedPacket().ballBearing);
+        log.log("bltStr", robotCommunication.getReceivedPacket().ballStrength);
+        log.log("bltScore", robotCommunication.getReceivedPacket().attackScore);
+        log.log("bltState", robotCommunication.getReceivedPacket().state);
+        log.log("bltRole", robotCommunication.getReceivedPacket().role);
+        log.log("bltFlags", robotCommunication.getReceivedPacket().flags);
+        log.log("bltSeq", robotCommunication.getReceivedPacket().sequence);
     });
 }
 
@@ -226,4 +240,21 @@ void Robot::checkRobotState(const float dt, const float targetBallHeading) {
             }
             break;
     }
+}
+
+void Robot::sendBluetoothUpdate() {
+    RobotPacket packet = {
+        static_cast<int16_t>(odometry-> getX()),
+        static_cast<int16_t>(odometry-> getY()),
+        static_cast<int16_t>(imu.getRelativeYaw()),
+        static_cast<int16_t>(irSensor.getDirectionDegrees()),
+        static_cast<uint8_t>(irSensor.getSignalStrength()),
+        static_cast<uint8_t>(0), // attack score
+        static_cast<uint8_t>(robotState),
+        static_cast<uint8_t>(1), // role (attack/defend)
+        static_cast<uint8_t>(0), // flags
+        static_cast<uint8_t>(packetSequence)
+    };
+    robotCommunication.sendPacket(packet);
+    if (packetSequence < 256) packetSequence++; else packetSequence = 0;
 }

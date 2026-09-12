@@ -42,7 +42,7 @@ class Robot {
 
         static constexpr uint8_t LOOP_TIME_MS = 15;
         static constexpr uint16_t LOG_INTERVAL_MS = 100;
-
+        uint8_t packetSequence = 0;
         
         static constexpr uint16_t SEARCH_SPD = 100;
         static constexpr uint16_t APPROACH_SPD = 100;
@@ -90,6 +90,8 @@ class Robot {
         void handleTargetHeading();
         void checkRobotState(const float dt, const float targetBallHeading);
         void maneuverAroundBall(const float dt, const float targetBallHeading);
+
+        void sendBluetoothUpdate();
 
         Button button;
         UartPacketTransport uartTransport;
