@@ -106,6 +106,7 @@ bool Robot::handleEdgeDetection(float dt) {
             escapeDirection = degrees(edgeVector.angle) + 180.0f;
         }
         elapsedEscapeTime = 0;
+        odometry-> boundaryAlignOdometry(edgeVector);
     }
 
     if ((elapsedEscapeTime - ESCAPE_DURATION) <= ESCAPE_BUFFER &&
