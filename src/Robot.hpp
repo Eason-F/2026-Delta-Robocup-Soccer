@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include <memory>
+#include <optional>
 
 #include <communication/RobotCommunication.hpp>
 #include <communication/uart/UartPacketTransport.hpp>
@@ -97,7 +97,7 @@ class Robot {
         RobotCommunication robotCommunication;
         Drive drive;
         IMU imu;
-        std::unique_ptr<OpticalOdometry> odometry;
+        std::optional<OpticalOdometry> odometry;
         ColourSensor colourSensor;
         Logger logger;
 };

@@ -20,7 +20,7 @@ Robot::Robot()
       colourSensor(22),
       logger(Serial, LOG_INTERVAL_MS) {
     if (WITH_ODOMETRY) {
-        odometry = std::make_unique<OpticalOdometry>(Wire2);
+        odometry.emplace(Wire2);
     }
 }
 
@@ -32,8 +32,8 @@ void Robot::setup() {
     irSensor.setup();
     robotCommunication.setup();
     imu.setup(); imu.resetYawOrigin();
-    if (odometry != nullptr) {
-        odometry-> setup();
+    if (odometry.has_value()) {
+        odometry->setup();
     }
 }
 
@@ -41,8 +41,8 @@ void Robot::run() {
     colourSensor.update(elapsedLastUpdateTime);
     uartTransport.update();
     imu.update();
-    if (odometry != nullptr) {
-        odometry-> update();
+    if (odometry.has_value()) {
+        odometry->update();
     }
 
     if (button.isPressed()) {
@@ -61,8 +61,8 @@ void Robot::run() {
     } else {
         drive.stop();
         imu.resetYawOrigin();
-        if (odometry != nullptr) {
-            odometry-> resetPosition();
+        if (odometry.has_value()) {
+            odometry->resetPosition();
         }
     }
 
@@ -125,7 +125,7 @@ void Robot::maneuverAroundBall(const float dt, const float targetBallHeading) {
     checkRobotState(dt, targetBallHeading);
     switch (robotState) {
         case SEARCH: {
-            if (odometry != nullptr) {
+            if (odometry.has_value()) {
                 drive.moveToPoint(dt, SEARCH_SPD, 0, 0, *odometry);
             } else {
                 drive.moveInDirection(dt, 180, SEARCH_SPD);
