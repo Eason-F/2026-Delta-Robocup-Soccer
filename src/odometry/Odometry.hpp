@@ -5,6 +5,7 @@
 
 #include <util/util.hpp>
 #include <util/Vector.hpp>
+#include <util/FieldConstants.hpp>
 
 class OpticalOdometry {
     public:
@@ -14,7 +15,7 @@ class OpticalOdometry {
         void update();
         void resetPosition();
         void setPosition(sfe_otos_pose2d_t &pose);
-        void boundaryAlignOdometry(Vector boundaryVector);
+        void boundaryAlignOdometry(const Vector &boundaryVector, const float &heading);
 
         float getX();
         float getY();
@@ -27,4 +28,6 @@ class OpticalOdometry {
 
         static constexpr float LINEAR_MULTIPLIER = 1380.0f;
         static sfe_otos_pose2d_t SENSOR_OFFSET;
+
+        static constexpr float BOUNDARY_CORRECTION_OFFSET = 100.0f;
 };
