@@ -46,6 +46,24 @@ void OpticalOdometry::resetPosition() {
     odometrySensor.resetTracking();
 }
 
-void OpticalOdometry::boundaryAlignOdometry(Vector edgeVec) {
-    return;
+void OpticalOdometry::boundaryAlignOdometry(const Vector &boundaryVector, const float &heading) {
+    float x = boundaryVector.x;
+    float y = boundaryVector.y;
+    float boundaryX = 
+        FieldConstants::fieldWidth / 2 - 
+        FieldConstants::boundaryInset - 
+        FieldConstants::boundaryLineWidth - 
+        BOUNDARY_CORRECTION_OFFSET;
+    float boundaryY = 
+        FieldConstants::fieldLength / 2 - 
+        FieldConstants::boundaryInset - 
+        FieldConstants::boundaryLineWidth -
+        BOUNDARY_CORRECTION_OFFSET;
+
+    sfe_otos_pose2d_t position = {
+        x * boundaryX,
+        y * boundaryY,
+        heading
+    };
+    setPosition(position);
 }
