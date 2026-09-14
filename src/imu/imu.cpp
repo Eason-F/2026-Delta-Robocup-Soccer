@@ -1,3 +1,4 @@
+// BNO055 setup and normalised absolute/relative yaw tracking.
 #include <imu/imu.hpp>
 
 IMU::IMU(TwoWire &wirePort)

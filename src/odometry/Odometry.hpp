@@ -1,5 +1,7 @@
 #pragma once
 
+// SparkFun Qwiic OTOS wrapper exposing the robot pose in field coordinates.
+
 #include <SparkFun_Qwiic_OTOS_Arduino_Library.h>
 #include <Wire.h>
 
@@ -25,6 +27,7 @@ class OpticalOdometry {
         QwiicOTOS odometrySensor;
         sfe_otos_pose2d_t position;
 
+        // Converts the sensor's configured metres into calibrated field units.
         static constexpr float LINEAR_MULTIPLIER = 1380.0f;
         static sfe_otos_pose2d_t SENSOR_OFFSET;
 };

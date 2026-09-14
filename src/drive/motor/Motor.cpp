@@ -1,3 +1,4 @@
+// Motor driver output, encoder sampling, and incremental PID control.
 #include <Arduino.h>
 
 #include <drive/motor/Motor.hpp>
@@ -43,6 +44,7 @@ void Motor::brake() {
 }
 
 void Motor::setMotorDutyCycle(int speed) {
+    // Convert the signed -100..100 command into complementary driver PWM.
     int motorSpeed = abs((speed / 100.0) * 255);
     if (speed > 0) {
         analogWrite(DIRECTION_PIN1, motorSpeed);
@@ -56,6 +58,7 @@ void Motor::setMotorDutyCycle(int speed) {
 }
 
 void Motor::setMotorRPM(int rpm, const float &dt) {
+    // Treat the bounded PID output as a change to the accumulated PWM command.
     float currentRPM = getRPM(dt);
     float pidOutput = constrain(pidController.adjustmentValue(dt, rpm, currentRPM), -MAX_PWM_CHANGE, MAX_PWM_CHANGE);
     lastInput += pidOutput;

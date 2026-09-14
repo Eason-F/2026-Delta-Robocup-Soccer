@@ -1,3 +1,4 @@
+// Boundary detection and vector combination for the four sensor directions.
 #include "colour.hpp"
 
 ColourSensor::ColourSensor(const int &pinFront, const int &pinRight, const int &pinBack, const int &pinLeft) :
@@ -28,6 +29,7 @@ bool ColourSensor::detectedEdge() {
 }
 
 Vector ColourSensor::getVector() {
+    // Vector addition points toward the weighted centre of active sensors.
     return front.getVector()
         + right.getVector()
         + back.getVector()

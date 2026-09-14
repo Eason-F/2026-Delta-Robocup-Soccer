@@ -1,10 +1,13 @@
 #pragma once
 
+// Rate-limited, non-blocking serial telemetry with replaceable queued fields.
+
 #include <Arduino.h>
 #include <cstring>
 
 class Logger {
 public:
+    // Fixed capacities avoid heap allocation in the control loop.
     static constexpr size_t BUFFER_SIZE = 512;
     static constexpr size_t MAX_QUEUED_FIELDS = 32;
     static constexpr size_t MAX_FIELD_NAME_LENGTH = 31;
@@ -17,10 +20,10 @@ public:
 
     template <typename Callback>
     void update(Callback callback) {
-        // Continue transmitting an existing line.
+        // Flush phase: continue transmitting an existing line.
         flush();
 
-        // Don't construct a new line until the previous one is done.
+        // Backpressure guard: do not overwrite a partially transmitted line.
         if (linePending) {
             return;
         }
@@ -37,7 +40,7 @@ public:
         lineBuffer.clear();
         firstField = true;
 
-        // Build regular fields.
+        // Assembly phase: callback fields first, then queued telemetry.
         callback(*this);
 
         // Append queued telemetry.
@@ -115,13 +118,14 @@ private:
         }
 
     private:
+        // Print-compatible fixed buffer used for formatting arbitrary values.
         uint8_t data[BUFFER_SIZE];
         size_t length = 0;
     };
 
     template <typename Value>
     void queueValue(const char *name, const Value &value) {
-        // Search for an existing field.
+        // Replacement path: update an existing field instead of duplicating it.
         for (size_t i = 0; i < queuedFieldCount; ++i) {
             if (strcmp(queuedFieldNames[i], name) == 0) {
                 /*
@@ -135,12 +139,12 @@ private:
             }
         }
 
-        // Queue is full.
+        // Capacity guard: silently discard new fields when the queue is full.
         if (queuedFieldCount >= MAX_QUEUED_FIELDS) {
             return;
         }
 
-        // Store field name.
+        // Storage phase: retain a bounded field name and its formatted value.
         strncpy(
             queuedFieldNames[queuedFieldCount],
             name,

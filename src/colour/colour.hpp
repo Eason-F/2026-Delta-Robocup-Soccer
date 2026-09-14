@@ -1,5 +1,7 @@
 #pragma once
 
+// Aggregates four directional colour modules into one boundary vector.
+
 #include <Arduino.h>
 #include <util/Vector.hpp>
 
@@ -15,6 +17,7 @@ class ColourSensor {
         Vector getVector();
         float getDirectionDegrees();
 
+        // Public modules expose individual readings for calibration and logging.
         ColourModule front;
         ColourModule right;
         ColourModule back;

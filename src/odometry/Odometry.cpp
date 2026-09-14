@@ -1,3 +1,4 @@
+// Optical odometry setup, calibration, and pose accessors.
 #include <odometry/Odometry.hpp>
 #include <util/util.hpp>
 
@@ -46,5 +47,6 @@ void OpticalOdometry::resetPosition() {
 }
 
 void OpticalOdometry::boundaryAlignOdometry(Vector edgeVec) {
+    // Reserved for snapping the estimated pose to a detected field boundary.
     return;
 }
