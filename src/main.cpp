@@ -1,3 +1,4 @@
+// Arduino entry points and ownership of the single robot controller.
 #include <Robot.hpp>
 
 Robot robot;

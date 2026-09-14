@@ -1,5 +1,7 @@
 #pragma once
 
+// Four-wheel holonomic drive mixing and closed-loop position control.
+
 #include <drive/motor/Motor.hpp>
 #include <odometry/Odometry.hpp>
 #include <util/PID.hpp>
@@ -9,6 +11,7 @@
 
 class Drive {
     public:
+        // Per-wheel speed controller tuning.
         static constexpr float motorKP = 0.3f;
         static constexpr float motorKI = 0.001f;
         static constexpr float motorKD = 0.0f;
@@ -20,6 +23,7 @@ class Drive {
         PIDController motorPID3 = PIDController(motorKP, motorKI, motorKD, motorMin, motorMax);
         PIDController motorPID4 = PIDController(motorKP, motorKI, motorKD, motorMin, motorMax);
 
+        // Field-position controller tuning.
         static constexpr float positionKP = 0.01f;
         static constexpr float positionKI = 0.0f;
         static constexpr float positionKD = 0.0f;
@@ -28,6 +32,7 @@ class Drive {
         PIDController positionPIDX = PIDController(positionKP, positionKI, positionKD, positionMin, positionMax);
         PIDController positionPIDY = PIDController(positionKP, positionKI, positionKD, positionMin, positionMax);
 
+        // Motors are public to support direct hardware testing and telemetry.
         Motor motor1;
         Motor motor2;
         Motor motor3;
@@ -48,6 +53,7 @@ class Drive {
         float rotationRpm = 0;
 
     private: 
+        // Motor driver and quadrature encoder pins, grouped by wheel.
         static constexpr int DIRECTION_PIN1_1 = 2;
         static constexpr int DIRECTION_PIN2_1 = 3;
         static constexpr int ENCODER_PIN1_1 = 33;

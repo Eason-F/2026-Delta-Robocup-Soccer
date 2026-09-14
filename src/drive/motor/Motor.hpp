@@ -1,5 +1,7 @@
 #pragma once
 
+// Bidirectional PWM motor output with quadrature-encoder RPM feedback.
+
 #include <string>
 #include <Encoder.h>
 
@@ -26,6 +28,7 @@ class Motor {
         void brake();
 
     private:
+        // Limit each PID update to avoid abrupt PWM changes.
         static constexpr int MAX_PWM_CHANGE = 30;
     
         const int DIRECTION_PIN1;

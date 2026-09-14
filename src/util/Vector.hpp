@@ -1,5 +1,7 @@
 #pragma once
 
+// Two-dimensional vector represented in both Cartesian and polar forms.
+
 #include <Arduino.h>
 
 class Vector {
@@ -9,6 +11,7 @@ class Vector {
         float angle = 0;
         float magnitude = 0;
 
+        // Tag types disambiguate Cartesian and angle/magnitude constructors.
         struct Position {};
         struct AngMag {};
 

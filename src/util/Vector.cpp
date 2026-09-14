@@ -1,3 +1,4 @@
+// Vector construction, arithmetic, and degree-based rotation.
 #include <util/Vector.hpp>
 
 Vector::Vector() = default;

@@ -1,3 +1,4 @@
+// Buffered telemetry assembly and non-blocking output flushing.
 #include <util/Logger.hpp>
 
 Logger *Logger::activeLogger = nullptr;
@@ -17,6 +18,7 @@ Logger::~Logger() {
 }
 
 void Logger::rebuildQueuedBuffer() {
+    // Reconstruct the flat output after a queued value is added or replaced.
     queuedFields.clear();
 
     for (size_t i = 0; i < queuedFieldCount; ++i) {
@@ -87,6 +89,7 @@ void Logger::clearQueuedFields() {
 }
 
 void Logger::flush() {
+    // Write only what the destination currently accepts to avoid blocking control.
     if (!linePending) {
         return;
     }

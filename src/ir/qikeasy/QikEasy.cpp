@@ -1,3 +1,4 @@
+// QikEasy register reads and vector-based ball direction estimation.
 #include <ir/qikeasy/QikEasy.hpp>
 #include <util/Logger.hpp>
 
@@ -50,12 +51,14 @@ void QikEasy::updateReadings() {
 }
 
 Vector QikEasy::vectorReadings() {
+    // Sample ten receivers distributed evenly around the robot.
     for (int i = 2; i < 12; i++) {
         uint16_t strength = signalStrength(i);
         float direction = ((i - 2) * PI / 5);
         allVecs[i - 2] = Vector(Vector::AngMag {}, direction, strength);
     }
 
+    // Combine only the strongest receivers to suppress ambient IR noise.
     Vector strongestVectors[AVERAGED_VECTOR_MAX];
     for (int i = 0; i < AVERAGED_VECTOR_MAX; i++) {
         for (int j = 0; j < 10; j++) {
@@ -94,6 +97,7 @@ Vector QikEasy::qikeasyReadings() {
 
 
 float QikEasy::strengthToDistance(const uint16_t &strength) {
+    // Reserved for an empirically calibrated strength-to-distance curve.
     return 0.0f;
 }
 

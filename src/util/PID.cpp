@@ -1,3 +1,4 @@
+// PID error integration, differentiation, and output limiting.
 #include <Arduino.h>
 
 #include <util/PID.hpp>

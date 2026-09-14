@@ -1,10 +1,13 @@
 #pragma once
 
+// Typed robot telemetry exchanged through the framed UART transport.
+
 #include <Arduino.h>
 #include <communication/uart/UartPacketTransport.hpp>
 
 #pragma pack(push, 1)
 
+// Fixed-width 14-byte wire payload; change both peers if this layout changes.
 struct RobotPacket {
     int16_t x;
     int16_t y;
@@ -34,6 +37,7 @@ class RobotCommunication {
         uint32_t getLastUpdateMillis() const;
 
     private:
+        // Packet types distinguish received and transmitted radio bridge data.
         static constexpr uint8_t ESP_NOW_TO_TEENSY_TYPE = 0x02;
         static constexpr uint8_t TEENSY_TO_ESP_NOW_TYPE = 0x03;
 

@@ -1,11 +1,14 @@
 #pragma once
 
+// Standard field geometry and named landmarks used by motion strategy.
+
 #include <util/util.hpp>
 
 // All dimensions and positions are in millimetres. The origin is at the field
 // centre, with +x pointing right and +y pointing toward the opponent goal.
 class FieldConstants {
     public:
+        // Regulation dimensions.
         static constexpr float fieldLength = 2430.0f;
         static constexpr float fieldWidth = 1820.0f;
         static constexpr float boundaryInset = 250.0f;

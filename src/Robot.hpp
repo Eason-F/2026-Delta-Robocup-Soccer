@@ -1,3 +1,6 @@
+#pragma once
+
+// Top-level robot controller, strategy state machine, and hardware ownership.
 #include <Arduino.h>
 
 #include <communication/RobotCommunication.hpp>
@@ -15,6 +18,7 @@
 #include <util/util.hpp>
 #include <util/FieldConstants.hpp>
 
+// Active-low start button configured with the Teensy's internal pull-up.
 class Button {
     private:
         const int buttonPin;
@@ -26,6 +30,7 @@ class Button {
         bool isPressed();
 };
 
+// Ball-handling phases used by the match strategy.
 enum State {
     SEARCH,
     APPROACH,
@@ -41,13 +46,16 @@ class Robot {
         void run();
 
     private:
+        // Scheduler and telemetry timing.
         static constexpr uint8_t LOOP_TIME_MS = 15;
         static constexpr uint16_t LOG_INTERVAL_MS = 100;
         uint8_t packetSequence = 0;
         
+        // Search and approach tuning (motor targets are in RPM).
         static constexpr uint16_t SEARCH_SPD = 100;
         static constexpr uint16_t APPROACH_SPD = 130;
         
+        // Orbit controller tuning and transition hysteresis.
         static constexpr uint16_t ORBIT_APPROACH_SPD = 130;
         static constexpr uint16_t ORBIT_SPD = 150;
         static constexpr uint16_t ORBIT_DISTANCE = 55;
@@ -56,6 +64,7 @@ class Robot {
         static constexpr uint16_t ORBIT_DEBOUNCE_MS = 100;
         unsigned long accumulatedOrbitTime = 0;
         
+        // Captured-ball alignment and forward-speed ramp.
         static constexpr uint16_t CAPTURED_MAX_SPD = 200;
         static constexpr uint16_t CAPTURED_MIN_SPD = 270;
         static constexpr uint16_t ENTER_ALIGNMENT_TOLERANCE = 15;
@@ -69,18 +78,21 @@ class Robot {
         PIDController orbitTangentPID = PIDController(0.04, 0, 0.001, -1.0, 1.0);
         PIDController orbitDistancePID = PIDController(0.3, 0, 0.001, -0.2, 1.0);
         
+        // Heading controller and ball-dependent heading offset.
         static constexpr uint8_t TURN_SPD = 80;
         static constexpr uint8_t HEADING_TOLERANCE = 15;
         static constexpr uint8_t BALL_TILT_RANGE = 70;
         static constexpr uint8_t BALL_TILT_MAX = 20;
         PIDController headingPID = PIDController(0.01, 0.0, 0.001, -1.0, 1.0);
         
+        // Boundary escape timing and last safe direction.
         static constexpr uint8_t BOUNDARY_ESCAPE_SPD = 80;
         static constexpr uint16_t ESCAPE_DURATION = 7;
         static constexpr uint16_t ESCAPE_BUFFER = 10;
         elapsedMillis elapsedEscapeTime = ESCAPE_DURATION;
         float escapeDirection = 0.0f;
 
+        // Runtime state and loop clocks.
         elapsedMicros elapsedLastUpdateTime;
         elapsedMillis elapsedLastLoopTime;
         State robotState = State::SEARCH;
@@ -94,6 +106,7 @@ class Robot {
 
         void sendBluetoothUpdate();
 
+        // Hardware and service modules.
         Button button;
         UartPacketTransport uartTransport;
         UartIRSensor irSensor;

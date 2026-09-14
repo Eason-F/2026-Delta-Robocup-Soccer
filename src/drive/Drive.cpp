@@ -1,3 +1,4 @@
+// Holonomic wheel mixing and field-position drive commands.
 #include <Arduino.h>
 #include <drive/Drive.hpp>
 #include <util/Logger.hpp>
@@ -18,6 +19,7 @@ void Drive::setup() {
 }
 
 void Drive::moveInDirection(const float &dt, int directionDegrees, int rpm) {
+    // Project translation onto wheels mounted at 45-degree intervals.
     lastDirection = directionDegrees;
     motor1.setMotorRPM(cos(radians(directionDegrees + 315)) * rpm + rotationRpm, dt);
     motor2.setMotorRPM(cos(radians(directionDegrees + 225)) * rpm + rotationRpm, dt);

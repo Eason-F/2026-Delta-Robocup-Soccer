@@ -1,3 +1,4 @@
+// UART IR packet validation, decoding, and latest-reading accessors.
 #include <ir/uart/UartIRSensor.hpp>
 
 UartIRSensor::UartIRSensor(UartPacketTransport &transport)
@@ -51,5 +52,6 @@ uint32_t UartIRSensor::getLastUpdateMillis() const {
 }
 
 float UartIRSensor::strengthToDistance(const uint16_t &strength) {
+    // Reserved for an empirically calibrated strength-to-distance curve.
     return 0.0f;
 }

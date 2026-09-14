@@ -1,5 +1,7 @@
 #pragma once
 
+// BNO055 yaw reader with a resettable robot-relative heading origin.
+
 #include <Adafruit_BNO055.h>
 #include <Arduino.h>
 #include <Wire.h>
@@ -23,6 +25,7 @@ class IMU {
         TwoWire &wirePort;
         Adafruit_BNO055 bno;
 
+        // Headings are normalised degrees in the range [-180, 180].
         float yaw, yawOrigin;
         static float normaliseYaw(float value);
 };

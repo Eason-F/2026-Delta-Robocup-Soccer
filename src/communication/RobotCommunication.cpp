@@ -1,3 +1,4 @@
+// Serialization boundary for robot-to-robot state packets.
 #include <communication/RobotCommunication.hpp>
 
 #include <cstring>
@@ -28,6 +29,7 @@ uint32_t RobotCommunication::getLastUpdateMillis() const {
 }
 
 void RobotCommunication::processPacket(const uint8_t *data, uint8_t length) {
+    // Reject incompatible payloads before copying into the packed structure.
     if (length != sizeof(RobotPacket)) {
         return;
     }
