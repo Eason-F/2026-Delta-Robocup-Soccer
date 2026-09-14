@@ -1,16 +1,20 @@
 #pragma once
 
+// Shared geometry types, angle helpers, and lightweight serial macros.
+
 #include <Arduino.h>
 #include <SparkFun_Qwiic_OTOS_Arduino_Library.h>
 
 #include <util/Vector.hpp>
 
+// Legacy direct logging helpers; prefer Logger for rate-limited telemetry.
 #define LOG_NEXT Serial.println();
 #define LOG_PRINT(text) Serial.print(text);
 #define LOG(header, text) LOG_PRINT(header) LOG_PRINT(": ") LOG_PRINT(text) LOG_PRINT("  | ")
 
 #define conditionallyBreakLoop(bool) if (bool) {return;}
 
+// Field position in millimetres using the coordinate convention in README.md.
 struct Position2D {
     float x = 0.0f;
     float y = 0.0f;
@@ -44,14 +48,15 @@ struct Position2D {
 };
 
 namespace util {
+    // Wrap a degree angle to the platform remainder range near [-180, 180].
     inline float wrapAngle180(const float angle) {
         return std::remainder(angle, 360.0);
     }
 
+    // Linearly map a value between ranges without constraining the result.
     inline float mapRange(const float value, const float fromMin, const float fromMax, const float toMin, const float toMax) {
         if (fromMin == fromMax) return toMin; 
         
         return toMin + (value - fromMin) * (toMax - toMin) / (fromMax - fromMin);
     }
 }
-

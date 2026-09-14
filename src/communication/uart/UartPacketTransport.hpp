@@ -1,5 +1,7 @@
 #pragma once
 
+// Non-blocking framed UART transport with typed callbacks and CRC validation.
+
 #include <Arduino.h>
 
 class UartPacketTransport {
@@ -16,11 +18,13 @@ class UartPacketTransport {
                               void *context);
 
     private:
+        // Frame format: markers, type, length, sequence, payload, CRC-16/CCITT.
         static constexpr uint8_t MARKER_0 = 0xA5;
         static constexpr uint8_t MARKER_1 = 0x5A;
         static constexpr uint8_t MAX_PAYLOAD_LENGTH = 64;
         static constexpr uint8_t MAX_PACKET_HANDLERS = 4;
 
+        // Incremental parser states allow update() to consume available bytes only.
         enum class ReceiveState : uint8_t {
             WAITING_FOR_MARKER_0,
             WAITING_FOR_MARKER_1,
@@ -38,6 +42,7 @@ class UartPacketTransport {
             void *context = nullptr;
         };
 
+        // Receiver and transmitter state.
         HardwareSerial &serialPort;
         uint32_t baudRate;
         ReceiveState receiveState = ReceiveState::WAITING_FOR_MARKER_0;

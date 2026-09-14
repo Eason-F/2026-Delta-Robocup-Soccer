@@ -1,5 +1,7 @@
 #pragma once
 
+// Ball bearing and signal-strength decoder for UART measurement packets.
+
 #include <Arduino.h>
 #include <communication/uart/UartPacketTransport.hpp>
 #include <util/util.hpp>
@@ -19,6 +21,7 @@ class UartIRSensor {
         static float strengthToDistance(const uint16_t &strength);
 
     private:
+        // Payload: signed little-endian centidegrees, then unsigned strength.
         static constexpr uint8_t IR_MEASUREMENT_TYPE = 0x01;
         static constexpr uint8_t IR_PAYLOAD_LENGTH = 4;
 

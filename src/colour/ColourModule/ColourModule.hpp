@@ -1,5 +1,7 @@
 #pragma once
 
+// One digital boundary sensor with a short release debounce window.
+
 #include <Arduino.h>
 #include <util/Vector.hpp>
 
@@ -12,10 +14,10 @@ class ColourModule {
         Vector getVector();
 
     private:
+        // direction is a robot-relative angle in radians.
         const int pin;
         const float direction;
         
         static constexpr uint8_t DEBOUNCE_BUFFER_MS = 50;
         unsigned long detectionBufferRemaining = 0;
 };
-

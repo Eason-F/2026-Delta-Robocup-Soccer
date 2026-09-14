@@ -1,3 +1,4 @@
+// Optical odometry setup, calibration, and pose accessors.
 #include <odometry/Odometry.hpp>
 #include <util/util.hpp>
 

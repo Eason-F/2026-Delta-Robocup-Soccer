@@ -1,3 +1,4 @@
+// UART frame encoding, byte-wise parsing, dispatch, and CRC calculation.
 #include <communication/uart/UartPacketTransport.hpp>
 
 #include <cstring>
@@ -23,6 +24,7 @@ bool UartPacketTransport::sendPacket(uint8_t type, const uint8_t *data,
         return false;
     }
 
+    // CRC covers type through payload; marker bytes and CRC are excluded.
     uint8_t frame[5 + MAX_PAYLOAD_LENGTH + sizeof(uint16_t)];
     frame[0] = MARKER_0;
     frame[1] = MARKER_1;
@@ -131,6 +133,7 @@ void UartPacketTransport::processPacket() {
 }
 
 void UartPacketTransport::resetReceiver(uint8_t currentByte) {
+    // Reuse a trailing marker byte as the possible start of the next frame.
     receiveState = currentByte == MARKER_0
                        ? ReceiveState::WAITING_FOR_MARKER_1
                        : ReceiveState::WAITING_FOR_MARKER_0;

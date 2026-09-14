@@ -1,3 +1,4 @@
+// Debounced digital edge detection for one colour sensor.
 #include "ColourModule.hpp"
 
 ColourModule::ColourModule(const int &pin, const float &direction): pin(pin), direction(direction) {}
@@ -7,6 +8,7 @@ void ColourModule::setup() {
 }
 
 void ColourModule::update(long elapsedMillis) {
+    // A high reading refreshes the latch; low readings count it down to zero.
     if (digitalReadFast(pin)) {
         detectionBufferRemaining = DEBOUNCE_BUFFER_MS;
         return;

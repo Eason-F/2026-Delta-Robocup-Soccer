@@ -1,3 +1,4 @@
+// Top-level setup, control-loop scheduling, and ball strategy implementation.
 #include <Robot.hpp>
 #include <util/util.hpp>
 
@@ -33,12 +34,14 @@ void Robot::setup() {
 }
 
 void Robot::run() {
+    // Fast path: keep sensor and transport state current on every iteration.
     colourSensor.update(elapsedLastUpdateTime);
     uartTransport.update();
     imu.update();
     odometry.update();
 
     if (button.isPressed()) {
+        // Active path: correct heading continuously and run strategy on cadence.
         float updateDt = elapsedLastUpdateTime / 1000000.0f;
         handleHeadingCorrection(updateDt, targetHeading);
         // conditionallyBreakLoop(handleEdgeDetection(updateDt));
@@ -55,12 +58,14 @@ void Robot::run() {
         }
         sendBluetoothUpdate();
     } else {
+        // Safe idle path: stop motion and redefine the starting pose.
         drive.stop();
         imu.resetYawOrigin();
         odometry.resetPosition();
     }
 
     elapsedLastUpdateTime = 0;
+    // Periodic telemetry; uncomment only the fields needed during tuning.
     logger.update([this](Logger &log) {
         // log.log("state", static_cast<int>(robotState));
         
@@ -91,6 +96,7 @@ void Robot::run() {
 }
 
 bool Robot::handleEdgeDetection(float dt) {
+    // Refresh the escape direction whenever any boundary sensor sees white.
     if (colourSensor.detectedEdge()) {
         const Vector edgeVector = colourSensor.getVector();
 
@@ -130,6 +136,7 @@ void Robot::handleTargetHeading() {
 
 
 void Robot::maneuverAroundBall(const float dt, const float targetBallHeading) {
+    // Convert the current strategy state into one drive command.
     checkRobotState(dt, targetBallHeading);
     switch (robotState) {
         case SEARCH: {
@@ -179,6 +186,7 @@ void Robot::maneuverAroundBall(const float dt, const float targetBallHeading) {
 }
 
 void Robot::checkRobotState(const float dt, const float targetBallHeading) {
+    // Apply distance/alignment hysteresis so noisy readings do not chatter.
     if (!irSensor.ballFound()) {
         robotState = State::SEARCH;
         accumulatedAlignedTime = 0;
