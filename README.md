@@ -1,6 +1,6 @@
-# RoboCup Junior Soccer — Team Tangent
+# RoboCup Junior Soccer — Team Delta
 
-Firmware for Team Tangent's 2026 RoboCup Junior Lightweight Soccer robot. It
+Firmware for Team Delta's 2026 RoboCup Junior Lightweight Soccer robot. It
 runs on a Teensy 4.1 and is built with PlatformIO using the Arduino framework.
 
 ## Overview
