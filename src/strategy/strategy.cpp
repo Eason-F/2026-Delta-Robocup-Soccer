@@ -17,6 +17,7 @@ Strategy::TrackingStage Strategy::getTrackingStage() const {
 }
 
 void Strategy::attack(const float dt) {
+    maneuverAroundBall(dt, 0);
 }
 
 void Strategy::defend(const float dt) {
