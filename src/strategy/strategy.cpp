@@ -16,6 +16,10 @@ Strategy::TrackingStage Strategy::getTrackingStage() const {
     return trackingStage;
 }
 
+Strategy::DefenceStage Strategy::getDefenceStage() const {
+    return defenceStage;
+}
+
 void Strategy::attack(const float dt) {
     maneuverAroundBall(dt, 0);
 }
@@ -138,11 +142,18 @@ void Strategy::checkTrackingStage(const float dt, const float targetBallHeading)
 
 uint8_t Strategy::calculateAttackScore() {
     float score = 0.0f;
+    score += robot.irSensor.getSignalStrength() * 0.5f; // role independant scoring
+    score -= abs(robot.irSensor.getDirectionDegrees()) * 0.5f;
+    score = constrain(score, -70.0f, 70.0f);
     switch (role) {
         case Role::DEFENCE:
             if (!isInGoalBox()) score -= ScoreConfigs::DEFENCE_NOT_READY_PENALTY; // penalise not being in goal box
             score -= robot.odometry.getPosition().distanceTo(FieldConstants::friendlyGoalBoxPosition);
-            score += util::sigmoid(robot.irSensor.getSignalStrength() - ScoreConfigs::DEFENCE_RANGE);
+            score += util::sigmoid(robot.irSensor.getSignalStrength() - ScoreConfigs::OUT_OF_RESPONSE_DISTANCE);
+            if (!(abs(robot.irSensor.getSignalStrength()) > ScoreConfigs::OUT_OF_RESPONSE_ANGLE) && 
+                !(robot.irSensor.getSignalStrength() < ScoreConfigs::OUT_OF_RESPONSE_DISTANCE)) {
+                score += ScoreConfigs::DEFENCE_IN_RANGE_BONUS; // switch when ball close to defender
+            }
             break;
         case Role::ATTACK:
             score += ScoreConfigs::RETAIN_ATTACK_BIAS; // bias to keep attacking robot in attack

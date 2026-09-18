@@ -143,6 +143,9 @@ void Robot::handleTargetHeading() {
 }
 
 void Robot::sendBluetoothUpdate() {
+    uint8_t stage = (strategy.getRole() == Strategy::Role::ATTACK) ? 
+        (uint8_t) strategy.getTrackingStage() : 
+        (uint8_t) strategy.getDefenceStage();
     RobotPacket packet = {
         static_cast<int16_t>(odometry.getX()),
         static_cast<int16_t>(odometry.getY()),
@@ -150,7 +153,7 @@ void Robot::sendBluetoothUpdate() {
         static_cast<int16_t>(irSensor.getDirectionDegrees()),
         static_cast<uint8_t>(irSensor.getSignalStrength()),
         static_cast<uint8_t>(strategy.calculateAttackScore()), // attack score
-        static_cast<uint8_t>(strategy.getTrackingStage()),
+        static_cast<uint8_t>(stage), // stage, depends on attack/defend
         static_cast<uint8_t>(strategy.getRole()), // role (attack/defend)
         static_cast<uint8_t>(0), // flags
         static_cast<uint8_t>(packetSequence)

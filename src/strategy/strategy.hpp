@@ -42,6 +42,7 @@ class Strategy {
         void calculateAngleToGoal();
 
         TrackingStage getTrackingStage() const;
+        DefenceStage getDefenceStage() const;
 
         // defence related
         void returnToHome(const float dt);
@@ -57,14 +58,14 @@ class Strategy {
 
         struct ScoreConfigs {
             static constexpr uint8_t DEFENCE_NOT_READY_PENALTY = 100;
-            static constexpr uint8_t DEFENCE_RANGE = 70;
+            static constexpr uint8_t DEFENCE_IN_RANGE_BONUS = 50;
 
             static constexpr uint8_t RETAIN_ATTACK_BIAS = 20;
             static constexpr uint8_t ATTACK_OFFSIDE_PENALTY = 70;
             static constexpr uint8_t ATTACK_SIGNAL_BONUS_RANGE = 130;
             
             static constexpr uint8_t OUT_OF_RESPONSE_ANGLE = 140;
-            static constexpr uint8_t OUT_OF_RESPONSE_DISTANCE = 70;
+            static constexpr uint8_t OUT_OF_RESPONSE_DISTANCE = 40;
             
         };
 
