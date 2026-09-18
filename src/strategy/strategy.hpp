@@ -38,14 +38,14 @@ class Strategy {
         void defend(const float dt);
 
         // attack related
+        TrackingStage getTrackingStage() const;
         void checkTrackingStage(const float dt, const float targetBallHeading);
         void maneuverAroundBall(const float dt, const float targetBallHeading);
         void calculateAngleToGoal();
 
-        TrackingStage getTrackingStage() const;
-        DefenceStage getDefenceStage() const;
-
+        
         // defence related
+        DefenceStage getDefenceStage() const;
         void returnToHome(const float dt);
         void goalBallTrack(const float dt); // shuffle around the goal while following the ball
         void attackTransition(const float dt); // charge forward from goal
