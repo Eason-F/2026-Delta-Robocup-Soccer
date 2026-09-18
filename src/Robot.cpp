@@ -70,19 +70,26 @@ void Robot::run() {
     logger.update([this](Logger &log) {
         // log.log("state", static_cast<int>(strategy.getTrackingStage()));
         
+        { // Other sensor readings
         // log.log("dir", irSensor.getDirectionDegrees());
         // log.log("str", irSensor.getSignalStrength());
         // log.log("ballFound", irSensor.ballFound());
         // log.log("colour", colourSensor.sensorState());
+        }
 
+        { // Odometry
         log.log("heading", imu.getRelativeYaw());
         log.log("odometryX", odometry.getX());
         log.log("odometryY", odometry.getY());
         log.log("odometryH", odometry.getHeading());
+        }
 
+        { // Drive
         // log.log("rpm", drive.motor1.angularVelocityRPM);
         // log.log("movementDir", drive.lastDirection);
-        
+        }
+
+        { // Bluetooth communications
         // log.log("bltX", robotCommunication.getReceivedPacket().x);
         // log.log("bltY", robotCommunication.getReceivedPacket().y);
         // log.log("bltH", robotCommunication.getReceivedPacket().heading);
@@ -93,6 +100,7 @@ void Robot::run() {
         // log.log("bltRole", robotCommunication.getReceivedPacket().role);
         // log.log("bltFlags", robotCommunication.getReceivedPacket().flags);
         // log.log("bltSeq", robotCommunication.getReceivedPacket().sequence);
+        }
     });
 }
 
