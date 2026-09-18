@@ -4,6 +4,7 @@
 #include <util/PID.hpp>
 
 class Robot;
+struct RobotPacket;
 
 class Strategy {
     public:
@@ -32,7 +33,7 @@ class Strategy {
 
         void update();
         Role getRole() const;
-        uint8_t calculateAttackScore(); // returns values from 0-256 for how suitable robot is for attack
+        uint8_t calculateAttackScore(); // returns 0-255; higher means more suitable to attack
         void attack(const float dt);
         void defend(const float dt);
 
@@ -57,17 +58,33 @@ class Strategy {
         DefenceStage defenceStage = DefenceStage::PASSIVE;
 
         struct ScoreConfigs {
-            static constexpr uint8_t DEFENCE_NOT_READY_PENALTY = 100;
-            static constexpr uint8_t DEFENCE_IN_RANGE_BONUS = 50;
+            // Each component has a bounded influence so millimetres, degrees,
+            // and raw IR strength cannot accidentally dominate one another.
+            static constexpr float BALL_STRENGTH_FULL_SCALE = 180.0f;
+            static constexpr float BALL_STRENGTH_WEIGHT = 100.0f;
+            static constexpr float BALL_ALIGNMENT_WEIGHT = 50.0f;
 
-            static constexpr uint8_t RETAIN_ATTACK_BIAS = 20;
-            static constexpr uint8_t ATTACK_OFFSIDE_PENALTY = 70;
-            static constexpr uint8_t ATTACK_SIGNAL_BONUS_RANGE = 130;
-            
-            static constexpr uint8_t OUT_OF_RESPONSE_ANGLE = 140;
-            static constexpr uint8_t OUT_OF_RESPONSE_DISTANCE = 40;
-            
+            static constexpr float DEFENCE_NOT_READY_PENALTY = 30.0f;
+            static constexpr float DEFENCE_POSITION_PENALTY_MAX = 40.0f;
+            static constexpr float DEFENCE_POSITION_FULL_SCALE = 900.0f;
+            static constexpr float DEFENCE_IN_RANGE_BONUS = 40.0f;
+
+            static constexpr float RETAIN_ATTACK_BIAS = 15.0f;
+            static constexpr float ATTACK_OFFSIDE_PENALTY = 40.0f;
+            static constexpr float ATTACK_SIGNAL_BONUS_MAX = 25.0f;
+            static constexpr float ATTACK_SIGNAL_BONUS_START = 130.0f;
+
+            static constexpr float OUT_OF_RESPONSE_ANGLE = 140.0f;
+            static constexpr float OUT_OF_RESPONSE_STRENGTH = 40.0f;
+
+            static constexpr uint16_t IR_READING_TIMEOUT_MS = 250;
+            static constexpr uint16_t COMMUNICATION_TIMEOUT_MS = 500;
+            static constexpr uint8_t ROLE_SWITCH_MARGIN = 8;
+            static constexpr uint16_t ROLE_SWITCH_DEBOUNCE_MS = 200;
         };
+
+        Role pendingRole = Role::ATTACK;
+        elapsedMillis pendingRoleTime;
 
         struct AttackConfig {
             // Search and approach tuning (motor targets are in RPM).
@@ -104,5 +121,7 @@ class Strategy {
         };
 
         bool isInGoalBox();
-        bool isFarInOpponentHalf();
+        bool isPastOpponentGoalBox();
+        bool hasFreshBallReading() const;
+        bool winsScoreTie(const RobotPacket &teammate) const;
 };

@@ -4,8 +4,47 @@
 Strategy::Strategy(Robot &robot) : robot(robot) {}
 
 void Strategy::update() {
-    RobotPacket communications = robot.robotCommunication.getReceivedPacket();
-    role = (communications.attackScore > calculateAttackScore()) ? Role::ATTACK : Role::DEFENCE;
+    if (!robot.robotCommunication.hasReceivedPacket() ||
+        millis() - robot.robotCommunication.getLastUpdateMillis() >
+            ScoreConfigs::COMMUNICATION_TIMEOUT_MS) {
+        pendingRole = role;
+        pendingRoleTime = 0;
+        return;
+    }
+
+    const RobotPacket &teammate = robot.robotCommunication.getReceivedPacket();
+    const uint8_t ownScore = calculateAttackScore();
+    Role desiredRole = role;
+
+    if (ownScore > teammate.attackScore + ScoreConfigs::ROLE_SWITCH_MARGIN) {
+        desiredRole = Role::ATTACK;
+    } else if (teammate.attackScore > ownScore + ScoreConfigs::ROLE_SWITCH_MARGIN) {
+        desiredRole = Role::DEFENCE;
+    } else if (teammate.role <= static_cast<uint8_t>(Role::DEFENCE) &&
+               teammate.role != static_cast<uint8_t>(role)) {
+        // Keep an already complementary assignment while scores are close.
+        desiredRole = role;
+    } else {
+        desiredRole = winsScoreTie(teammate) ? Role::ATTACK : Role::DEFENCE;
+    }
+
+    if (desiredRole == role) {
+        pendingRole = role;
+        pendingRoleTime = 0;
+        return;
+    }
+
+    if (desiredRole != pendingRole) {
+        pendingRole = desiredRole;
+        pendingRoleTime = 0;
+        return;
+    }
+
+    if (pendingRoleTime >= ScoreConfigs::ROLE_SWITCH_DEBOUNCE_MS) {
+        role = desiredRole;
+        pendingRole = role;
+        pendingRoleTime = 0;
+    }
 }
 
 Strategy::Role Strategy::getRole() const{
@@ -141,31 +180,55 @@ void Strategy::checkTrackingStage(const float dt, const float targetBallHeading)
 }
 
 uint8_t Strategy::calculateAttackScore() {
-    float score = 0.0f;
-    score += robot.irSensor.getSignalStrength() * 0.5f; // role independant scoring
-    score -= abs(robot.irSensor.getDirectionDegrees()) * 0.5f;
-    score = constrain(score, -70.0f, 70.0f);
+    if (!hasFreshBallReading()) return 0;
+
+    const float signalStrength = robot.irSensor.getSignalStrength();
+    const float absoluteBearing = abs(util::wrapAngle180(
+        robot.irSensor.getDirectionDegrees()));
+    const float strengthFactor = constrain(
+        signalStrength / ScoreConfigs::BALL_STRENGTH_FULL_SCALE, 0.0f, 1.0f);
+    const float alignmentFactor = constrain(
+        1.0f - absoluteBearing / 180.0f, 0.0f, 1.0f);
+
+    float score = strengthFactor * ScoreConfigs::BALL_STRENGTH_WEIGHT;
+    score += alignmentFactor * ScoreConfigs::BALL_ALIGNMENT_WEIGHT;
+
     switch (role) {
         case Role::DEFENCE:
-            if (!isInGoalBox()) score -= ScoreConfigs::DEFENCE_NOT_READY_PENALTY; // penalise not being in goal box
-            score -= robot.odometry.getPosition().distanceTo(FieldConstants::friendlyGoalBoxPosition);
-            score += util::sigmoid(robot.irSensor.getSignalStrength() - ScoreConfigs::OUT_OF_RESPONSE_DISTANCE);
-            if (!(abs(robot.irSensor.getSignalStrength()) > ScoreConfigs::OUT_OF_RESPONSE_ANGLE) && 
-                !(robot.irSensor.getSignalStrength() < ScoreConfigs::OUT_OF_RESPONSE_DISTANCE)) {
-                score += ScoreConfigs::DEFENCE_IN_RANGE_BONUS; // switch when ball close to defender
+            if (!isInGoalBox()) {
+                score -= ScoreConfigs::DEFENCE_NOT_READY_PENALTY;
+            }
+            score -= constrain(
+                robot.odometry.getPosition().distanceTo(
+                    FieldConstants::friendlyGoalBoxPosition) /
+                    ScoreConfigs::DEFENCE_POSITION_FULL_SCALE,
+                0.0f, 1.0f) * ScoreConfigs::DEFENCE_POSITION_PENALTY_MAX;
+
+            if (absoluteBearing <= ScoreConfigs::OUT_OF_RESPONSE_ANGLE &&
+                signalStrength >= ScoreConfigs::OUT_OF_RESPONSE_STRENGTH) {
+                const float responseFactor = constrain(
+                    (signalStrength - ScoreConfigs::OUT_OF_RESPONSE_STRENGTH) /
+                    (ScoreConfigs::BALL_STRENGTH_FULL_SCALE -
+                     ScoreConfigs::OUT_OF_RESPONSE_STRENGTH),
+                    0.0f, 1.0f);
+                score += responseFactor * ScoreConfigs::DEFENCE_IN_RANGE_BONUS;
             }
             break;
         case Role::ATTACK:
-            score += ScoreConfigs::RETAIN_ATTACK_BIAS; // bias to keep attacking robot in attack
-            if (isFarInOpponentHalf() && 
-                abs(robot.irSensor.getDirectionDegrees() > ScoreConfigs::OUT_OF_RESPONSE_ANGLE) &&
-                abs(robot.irSensor.getSignalStrength() < ScoreConfigs::OUT_OF_RESPONSE_DISTANCE)) {
-                score -= ScoreConfigs::ATTACK_OFFSIDE_PENALTY; // switch when too far forward
+            score += ScoreConfigs::RETAIN_ATTACK_BIAS;
+            if (isPastOpponentGoalBox() &&
+                absoluteBearing > ScoreConfigs::OUT_OF_RESPONSE_ANGLE &&
+                signalStrength < ScoreConfigs::OUT_OF_RESPONSE_STRENGTH) {
+                score -= ScoreConfigs::ATTACK_OFFSIDE_PENALTY;
             }
-            score += max(robot.irSensor.getSignalStrength() - ScoreConfigs::ATTACK_SIGNAL_BONUS_RANGE, 0);
+            score += constrain(
+                (signalStrength - ScoreConfigs::ATTACK_SIGNAL_BONUS_START) /
+                (ScoreConfigs::BALL_STRENGTH_FULL_SCALE -
+                 ScoreConfigs::ATTACK_SIGNAL_BONUS_START),
+                0.0f, 1.0f) * ScoreConfigs::ATTACK_SIGNAL_BONUS_MAX;
             break;
     }
-    return static_cast<uint8_t> (constrain(score, 0, 256));
+    return static_cast<uint8_t>(constrain(score, 0.0f, 255.0f));
 }
 
 bool Strategy::isInGoalBox() {
@@ -177,6 +240,31 @@ bool Strategy::isInGoalBox() {
     );
 }
 
-bool Strategy::isFarInOpponentHalf() {
+bool Strategy::isPastOpponentGoalBox() {
     return robot.odometry.getY() > FieldConstants::opponentGoalBoxTopLeft.y;
+}
+
+bool Strategy::hasFreshBallReading() const {
+    return robot.irSensor.ballFound() &&
+           millis() - robot.irSensor.getLastUpdateMillis() <=
+               ScoreConfigs::IR_READING_TIMEOUT_MS;
+}
+
+bool Strategy::winsScoreTie(const RobotPacket &teammate) const {
+    // Both robots run this ordering with local/remote values reversed, yielding
+    // complementary roles without adding an ID to the radio packet.
+    const int16_t ownX = static_cast<int16_t>(robot.odometry.getX());
+    const int16_t ownY = static_cast<int16_t>(robot.odometry.getY());
+    const int16_t ownHeading = static_cast<int16_t>(robot.imu.getRelativeYaw());
+    const int16_t ownBearing = static_cast<int16_t>(
+        robot.irSensor.getDirectionDegrees());
+
+    if (ownX != teammate.x) return ownX < teammate.x;
+    if (ownY != teammate.y) return ownY > teammate.y;
+    if (ownHeading != teammate.heading) return ownHeading < teammate.heading;
+    if (ownBearing != teammate.ballBearing) return ownBearing < teammate.ballBearing;
+
+    // The sequence fallback normally differs because packets arrive
+    // asynchronously. A permanent exact tie needs an explicit robot ID.
+    return robot.packetSequence < teammate.sequence;
 }
