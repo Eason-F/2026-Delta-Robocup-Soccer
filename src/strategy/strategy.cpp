@@ -3,14 +3,23 @@
 
 Strategy::Strategy(Robot &robot) : robot(robot) {}
 
+void Strategy::update() {
+    RobotPacket communications = robot.robotCommunication.getReceivedPacket();
+    role = (communications.attackScore > calculateAttackScore()) ? Role::ATTACK : Role::DEFENCE;
+}
+
+Strategy::Role Strategy::getRole() const{
+    return role;
+}
+
 Strategy::TrackingStage Strategy::getTrackingStage() const {
     return trackingStage;
 }
 
-void Strategy::attack() {
+void Strategy::attack(const float dt) {
 }
 
-void Strategy::defend() {
+void Strategy::defend(const float dt) {
 }
 
 void Strategy::maneuverAroundBall(const float dt, const float targetBallHeading) {
@@ -126,3 +135,36 @@ void Strategy::checkTrackingStage(const float dt, const float targetBallHeading)
     }
 }
 
+uint8_t Strategy::calculateAttackScore() {
+    float score = 0.0f;
+    switch (role) {
+        case Role::DEFENCE:
+            if (!isInGoalBox()) score -= ScoreConfigs::DEFENCE_NOT_READY_PENALTY; // penalise not being in goal box
+            score -= robot.odometry.getPosition().distanceTo(FieldConstants::friendlyGoalBoxPosition);
+            score += util::sigmoid(robot.irSensor.getSignalStrength() - ScoreConfigs::DEFENCE_RANGE);
+            break;
+        case Role::ATTACK:
+            score += ScoreConfigs::RETAIN_ATTACK_BIAS; // bias to keep attacking robot in attack
+            if (isFarInOpponentHalf() && 
+                abs(robot.irSensor.getDirectionDegrees() > ScoreConfigs::OUT_OF_RESPONSE_ANGLE) &&
+                abs(robot.irSensor.getSignalStrength() < ScoreConfigs::OUT_OF_RESPONSE_DISTANCE)) {
+                score -= ScoreConfigs::ATTACK_OFFSIDE_PENALTY; // switch when too far forward
+            }
+            score += max(robot.irSensor.getSignalStrength() - ScoreConfigs::ATTACK_SIGNAL_BONUS_RANGE, 0);
+            break;
+    }
+    return static_cast<uint8_t> (constrain(score, 0, 256));
+}
+
+bool Strategy::isInGoalBox() {
+    float x = robot.odometry.getX();
+    float y = robot.odometry.getY();
+    return (
+        abs(x) < FieldConstants::friendlyGoalBoxTopRight.x &&
+        y < FieldConstants::friendlyGoalBoxTopRight.y
+    );
+}
+
+bool Strategy::isFarInOpponentHalf() {
+    return robot.odometry.getY() > FieldConstants::opponentGoalBoxTopLeft.y;
+}

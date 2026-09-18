@@ -21,16 +21,20 @@ void OpticalOdometry::setup() {
     odometrySensor.resetTracking();
 }
 
-float OpticalOdometry::getX() {
+float OpticalOdometry::getX() const {
     return position.x * LINEAR_MULTIPLIER;
 }
 
-float OpticalOdometry::getY() {
+float OpticalOdometry::getY() const {
     return position.y * LINEAR_MULTIPLIER;
 }
 
-float OpticalOdometry::getHeading() {
+float OpticalOdometry::getHeading() const {
     return position.h;
+}
+
+Position2D OpticalOdometry::getPosition() const {
+    return {position.x, position.y};
 }
 
 void OpticalOdometry::update() {

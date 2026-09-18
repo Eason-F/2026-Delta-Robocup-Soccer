@@ -26,6 +26,10 @@ struct Position2D {
         return {x, y, heading};
     }
 
+    float distanceTo(const Position2D other) const{
+        return hypot(abs(x - other.x), abs(y - other.y));
+    }
+
     Position2D operator+(const Vector &vector) const {
         return {x + vector.x, y + vector.y};
     }
@@ -58,5 +62,10 @@ namespace util {
         if (fromMin == fromMax) return toMin; 
         
         return toMin + (value - fromMin) * (toMax - toMin) / (fromMax - fromMin);
+    }
+
+    // Sigmoid function
+    inline float sigmoid(float x) {
+        return 1.0f / (1.0f + std::exp(-x));
     }
 }

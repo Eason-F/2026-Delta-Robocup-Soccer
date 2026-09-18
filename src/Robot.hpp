@@ -66,6 +66,8 @@ class Robot {
         elapsedMillis elapsedLastLoopTime;
         float targetHeading;
 
+        void enforceDefinedRoleBehaviour(const float dt);
+
         bool handleEdgeDetection(const float dt);
         void handleHeadingCorrection(const float dt, const float targetHeading);
         void handleTargetHeading();

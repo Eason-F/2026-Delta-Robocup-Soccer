@@ -41,21 +41,20 @@ void Robot::run() {
     imu.update();
     odometry.update();
 
+    strategy.update();
+
     if (button.isPressed()) {
-        // Active path: correct heading continuously and run strategy on cadence.
+        // Active path: correct heading continuously and enact strategy periodically.
         float updateDt = elapsedLastUpdateTime / 1000000.0f;
         handleHeadingCorrection(updateDt, targetHeading);
-        // conditionallyBreakLoop(handleEdgeDetection(updateDt));
+        conditionallyBreakLoop(handleEdgeDetection(updateDt));
 
         if (elapsedLastLoopTime >= LOOP_TIME_MS) {
             float dt = elapsedLastLoopTime / 1000.0f;
             elapsedLastLoopTime = 0;
 
-            strategy.maneuverAroundBall(dt, 0);
+            enforceDefinedRoleBehaviour(dt);
             
-            // drive.moveToPoint(dt, 130, FieldConstants::friendlyGoalBoxPosition, odometry);
-            // drive.moveInDirection(dt, irSensor.getDirectionDegrees(), 100);
-            // drive.motor1.setMotorRPM(100, dt);
         }
         sendBluetoothUpdate();
     } else {
@@ -68,7 +67,7 @@ void Robot::run() {
     elapsedLastUpdateTime = 0;
     // Periodic telemetry; uncomment only the fields needed during tuning.
     logger.update([this](Logger &log) {
-        // log.log("state", static_cast<int>(strategy.getTrackingStage()));
+        log.log("t", static_cast<int>(millis() / 1000.0f));
         
         // log.log("dir", irSensor.getDirectionDegrees());
         // log.log("str", irSensor.getSignalStrength());
@@ -96,7 +95,15 @@ void Robot::run() {
     });
 }
 
-bool Robot::handleEdgeDetection(float dt) {
+void Robot::enforceDefinedRoleBehaviour(const float dt) {
+    if (strategy.getRole() == Strategy::Role::ATTACK) {
+        strategy.attack(dt);
+    } else {
+        strategy.defend(dt);
+    }
+}
+
+bool Robot::handleEdgeDetection(const float dt) {
     // Refresh the escape direction whenever any boundary sensor sees white.
     if (colourSensor.detectedEdge()) {
         const Vector edgeVector = colourSensor.getVector();
@@ -135,7 +142,6 @@ void Robot::handleTargetHeading() {
     }
 }
 
-
 void Robot::sendBluetoothUpdate() {
     RobotPacket packet = {
         static_cast<int16_t>(odometry.getX()),
@@ -143,9 +149,9 @@ void Robot::sendBluetoothUpdate() {
         static_cast<int16_t>(imu.getRelativeYaw()),
         static_cast<int16_t>(irSensor.getDirectionDegrees()),
         static_cast<uint8_t>(irSensor.getSignalStrength()),
-        static_cast<uint8_t>(0), // attack score
+        static_cast<uint8_t>(strategy.calculateAttackScore()), // attack score
         static_cast<uint8_t>(strategy.getTrackingStage()),
-        static_cast<uint8_t>(1), // role (attack/defend)
+        static_cast<uint8_t>(strategy.getRole()), // role (attack/defend)
         static_cast<uint8_t>(0), // flags
         static_cast<uint8_t>(packetSequence)
     };

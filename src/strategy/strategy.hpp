@@ -23,11 +23,18 @@ class Strategy {
             ENGAGE
         };
 
+        enum class Role : uint8_t {
+            ATTACK,
+            DEFENCE
+        };
+
         explicit Strategy(Robot &robot);
 
+        void update();
+        Role getRole() const;
         uint8_t calculateAttackScore(); // returns values from 0-256 for how suitable robot is for attack
-        void attack();
-        void defend();
+        void attack(const float dt);
+        void defend(const float dt);
 
         // attack related
         void checkTrackingStage(const float dt, const float targetBallHeading);
@@ -44,8 +51,22 @@ class Strategy {
 
     private:
         Robot &robot;
+        Role role = Role::ATTACK;
         TrackingStage trackingStage = TrackingStage::SEARCH;
         DefenceStage defenceStage = DefenceStage::PASSIVE;
+
+        struct ScoreConfigs {
+            static constexpr uint8_t DEFENCE_NOT_READY_PENALTY = 100;
+            static constexpr uint8_t DEFENCE_RANGE = 70;
+
+            static constexpr uint8_t RETAIN_ATTACK_BIAS = 20;
+            static constexpr uint8_t ATTACK_OFFSIDE_PENALTY = 70;
+            static constexpr uint8_t ATTACK_SIGNAL_BONUS_RANGE = 130;
+            
+            static constexpr uint8_t OUT_OF_RESPONSE_ANGLE = 140;
+            static constexpr uint8_t OUT_OF_RESPONSE_DISTANCE = 70;
+            
+        };
 
         struct AttackConfig {
             // Search and approach tuning (motor targets are in RPM).
@@ -80,4 +101,7 @@ class Strategy {
         struct DefenceConfig {
             
         };
+
+        bool isInGoalBox();
+        bool isFarInOpponentHalf();
 };
