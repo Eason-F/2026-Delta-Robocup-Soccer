@@ -1,4 +1,4 @@
-#include "strategy.hpp"
+#include "Strategy.hpp"
 #include <Robot.hpp>
 
 Strategy::Strategy(Robot &robot) : robot(robot) {}

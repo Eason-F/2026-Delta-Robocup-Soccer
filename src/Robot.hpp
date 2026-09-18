@@ -3,7 +3,7 @@
 // Top-level robot controller, strategy state machine, and hardware ownership.
 #include <Arduino.h>
 
-#include <strategy/strategy.hpp>
+#include <strategy/Strategy.hpp>
 
 #include <communication/RobotCommunication.hpp>
 #include <communication/uart/UartPacketTransport.hpp>
