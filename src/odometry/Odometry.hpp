@@ -19,9 +19,10 @@ class OpticalOdometry {
         void setPosition(sfe_otos_pose2d_t &pose);
         void boundaryAlignOdometry(const Vector &boundaryVector, const float &heading);
 
-        float getX();
-        float getY();
-        float getHeading();
+        float getX() const;
+        float getY() const;
+        float getHeading() const;
+        Position2D getPosition() const;
 
     private:
         TwoWire &wirePort;
