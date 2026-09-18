@@ -3,6 +3,8 @@
 // Top-level robot controller, strategy state machine, and hardware ownership.
 #include <Arduino.h>
 
+#include <strategy/strategy.hpp>
+
 #include <communication/RobotCommunication.hpp>
 #include <communication/uart/UartPacketTransport.hpp>
 
@@ -30,15 +32,9 @@ class Button {
         bool isPressed();
 };
 
-// Ball-handling phases used by the match strategy.
-enum State {
-    SEARCH,
-    APPROACH,
-    ORBIT,
-    CAPTURED
-};
-
 class Robot {
+    friend class Strategy;
+
     public:
         Robot();
 
@@ -50,33 +46,6 @@ class Robot {
         static constexpr uint8_t LOOP_TIME_MS = 15;
         static constexpr uint16_t LOG_INTERVAL_MS = 100;
         uint8_t packetSequence = 0;
-        
-        // Search and approach tuning (motor targets are in RPM).
-        static constexpr uint16_t SEARCH_SPD = 100;
-        static constexpr uint16_t APPROACH_SPD = 130;
-        
-        // Orbit controller tuning and transition hysteresis.
-        static constexpr uint16_t ORBIT_APPROACH_SPD = 130;
-        static constexpr uint16_t ORBIT_SPD = 150;
-        static constexpr uint16_t ORBIT_DISTANCE = 55;
-        static constexpr uint16_t ORBIT_ENTRY_TOLERANCE = 20;
-        static constexpr uint16_t ORBIT_EXIT_TOLERANCE = 30;
-        static constexpr uint16_t ORBIT_DEBOUNCE_MS = 100;
-        unsigned long accumulatedOrbitTime = 0;
-        
-        // Captured-ball alignment and forward-speed ramp.
-        static constexpr uint16_t CAPTURED_MAX_SPD = 200;
-        static constexpr uint16_t CAPTURED_MIN_SPD = 270;
-        static constexpr uint16_t ENTER_ALIGNMENT_TOLERANCE = 15;
-        static constexpr uint16_t EXIT_ALIGNMENT_TOLERANCE = 30;
-        static constexpr uint16_t HEADING_DEADBAND = 7;
-        static constexpr uint16_t SPEED_RAMP_MAX_MS = 1000;
-        static constexpr uint16_t ALIGNED_DEBOUNCE_MS = 0;
-        unsigned long accumulatedAlignedTime = 0;
-        
-        PIDController approachPID = PIDController(0.5, 0, 0, 0.0, 1.0);
-        PIDController orbitTangentPID = PIDController(0.04, 0, 0.001, -1.0, 1.0);
-        PIDController orbitDistancePID = PIDController(0.3, 0, 0.001, -0.2, 1.0);
         
         // Heading controller and ball-dependent heading offset.
         static constexpr uint8_t TURN_SPD = 80;
@@ -95,14 +64,11 @@ class Robot {
         // Runtime state and loop clocks.
         elapsedMicros elapsedLastUpdateTime;
         elapsedMillis elapsedLastLoopTime;
-        State robotState = State::SEARCH;
         float targetHeading;
 
         bool handleEdgeDetection(const float dt);
         void handleHeadingCorrection(const float dt, const float targetHeading);
         void handleTargetHeading();
-        void checkRobotState(const float dt, const float targetBallHeading);
-        void maneuverAroundBall(const float dt, const float targetBallHeading);
 
         void sendBluetoothUpdate();
 
@@ -116,4 +82,7 @@ class Robot {
         OpticalOdometry odometry;
         ColourSensor colourSensor;
         Logger logger;
+
+        // Strategy control
+        Strategy strategy;
 };
