@@ -7,6 +7,7 @@ void Strategy::update() {
     if (!robot.robotCommunication.hasReceivedPacket() ||
         millis() - robot.robotCommunication.getLastUpdateMillis() >
             ScoreConfigs::COMMUNICATION_TIMEOUT_MS) {
+        role = Role::ATTACK;
         pendingRole = role;
         pendingRoleTime = 0;
         return;
