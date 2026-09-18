@@ -19,8 +19,11 @@ void Strategy::update() {
 
     if (ownScore > teammate.attackScore + ScoreConfigs::ROLE_SWITCH_MARGIN) {
         desiredRole = Role::ATTACK;
+        trackingStage = TrackingStage::TRANSITION;
+        transitionTime = 0;
     } else if (teammate.attackScore > ownScore + ScoreConfigs::ROLE_SWITCH_MARGIN) {
         desiredRole = Role::DEFENCE;
+        defenceStage = DefenceStage::RETURN;
     } else if (teammate.role <= static_cast<uint8_t>(Role::DEFENCE) &&
                teammate.role != static_cast<uint8_t>(role)) {
         // Keep an already complementary assignment while scores are close.
