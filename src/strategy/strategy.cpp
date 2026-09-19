@@ -3,52 +3,132 @@
 
 Strategy::Strategy(Robot &robot) : robot(robot) {}
 
+void Strategy::configureGame(bool running, bool hasStartingPosition, bool forceBothAttack) {
+    if (running != gameplayActive || hasStartingPosition != startingPositionValid ||
+        forceBothAttack != localBothAttack) {
+        rolesInitialized = false;
+        standaloneAttack = false;
+        roleEpoch = 0;
+        setRole(Role::ATTACK);
+    }
+    gameplayActive = running;
+    startingPositionValid = hasStartingPosition;
+    localBothAttack = forceBothAttack;
+    if (!running) bothAttackLatched = false;
+    else if (!hasStartingPosition || forceBothAttack) bothAttackLatched = true;
+}
+
 void Strategy::update() {
-    if (!robot.robotCommunication.hasReceivedPacket() ||
-        millis() - robot.robotCommunication.getLastUpdateMillis() >
-            ScoreConfigs::COMMUNICATION_TIMEOUT_MS) {
-        role = Role::ATTACK;
-        pendingRole = role;
-        pendingRoleTime = 0;
-        return;
-    }
-
+    const bool communicationFresh = robot.robotCommunication.hasReceivedPacket() &&
+        millis() - robot.robotCommunication.getLastUpdateMillis() <=
+            ScoreConfigs::COMMUNICATION_TIMEOUT_MS;
     const RobotPacket &teammate = robot.robotCommunication.getReceivedPacket();
-    const uint8_t ownScore = calculateAttackScore();
-    Role desiredRole = role;
+    const bool teammateHasPosition = (teammate.flags & POSITION_VALID_FLAG) != 0;
+    const bool teammateRequestsAttack = communicationFresh &&
+        ((teammate.flags & BOTH_ATTACK_FLAG) != 0 ||
+         ((teammate.flags & RUNNING_FLAG) != 0 && !teammateHasPosition));
+    // Once either robot starts with null/override, retain both-attack for this run.
+    if (gameplayActive && teammateRequestsAttack) bothAttackLatched = true;
 
-    if (ownScore > teammate.attackScore + ScoreConfigs::ROLE_SWITCH_MARGIN) {
-        desiredRole = Role::ATTACK;
-        trackingStage = TrackingStage::TRANSITION;
-        transitionTime = 0;
-    } else if (teammate.attackScore > ownScore + ScoreConfigs::ROLE_SWITCH_MARGIN) {
-        desiredRole = Role::DEFENCE;
-        defenceStage = DefenceStage::RETURN;
-    } else if (teammate.role <= static_cast<uint8_t>(Role::DEFENCE) &&
-               teammate.role != static_cast<uint8_t>(role)) {
-        // Keep an already complementary assignment while scores are close.
-        desiredRole = role;
+    if (!communicationFresh || localBothAttack || bothAttackLatched ||
+        teammateRequestsAttack || !startingPositionValid || !teammateHasPosition) {
+        if (!standaloneAttack) {
+            setRole(Role::ATTACK);
+            // Re-establish complementary roles when communication returns.
+            // Do not advertise the solo fallback as a coordinated assignment.
+            rolesInitialized = false;
+            roleEpoch = 0;
+            standaloneAttack = true;
+        }
+        return;
+    }
+
+    if (teammate.role > static_cast<uint8_t>(Role::DEFENCE)) return;
+    standaloneAttack = false;
+    const bool teammateReady = (teammate.flags & ROLE_READY_FLAG) != 0;
+    const uint8_t teammateEpoch = teammate.flags >> EPOCH_SHIFT;
+
+    if (!gameplayActive) {
+        // Presets may still change. Advertise coordinates, but do not lock in
+        // an assignment based on a previous idle-period selection.
+        rolesInitialized = false;
+        roleEpoch = 0;
+        return;
+    }
+
+    if (!rolesInitialized) {
+        if (teammateReady) {
+            roleEpoch = teammateEpoch;
+            setRole(teammate.role == static_cast<uint8_t>(Role::ATTACK)
+                        ? Role::DEFENCE : Role::ATTACK);
+        } else {
+            // Requires calibrated poses with a common field origin.
+            const int16_t ownY = static_cast<int16_t>(robot.odometry.getY());
+            if (ownY == teammate.y) return;
+            setRole(ownY > teammate.y ? Role::ATTACK : Role::DEFENCE);
+        }
+        rolesInitialized = true;
+        return;
+    }
+
+    if (!teammateReady) return;
+    const uint8_t epochDifference = (teammateEpoch - roleEpoch) & EPOCH_MASK;
+    if (epochDifference != 0) {
+        // Adopt newer handoffs; repeated and older packets cannot undo them.
+        if (epochDifference < 4) {
+            roleEpoch = teammateEpoch;
+            setRole(teammate.role == static_cast<uint8_t>(Role::ATTACK)
+                        ? Role::DEFENCE : Role::ATTACK);
+        }
+        return;
+    }
+
+    // Only the defender initiates a swap, and only once back in the goal box.
+    if (role != Role::DEFENCE ||
+        teammate.role != static_cast<uint8_t>(Role::ATTACK) ||
+        !isInGoalBox()) return;
+
+    const bool ballInResponseZone = hasFreshBallReading() &&
+        robot.irSensor.getSignalStrength() >= DefenceConfig::RESPONSE_MIN_STRENGTH &&
+        abs(util::wrapAngle180(robot.irSensor.getDirectionDegrees())) <=
+            DefenceConfig::RESPONSE_HALF_ANGLE_DEG;
+
+    // A weak ball signal behind the attacker is a proxy for a long return;
+    // the sensor does not yet have a calibrated strength-to-distance mapping.
+    const float attackerRelativeBearing = util::wrapAngle180(
+        static_cast<float>(teammate.ballBearing));
+    const bool attackerOvershot = (teammate.flags & FRESH_BALL_FLAG) != 0 &&
+        teammate.ballStrength < DefenceConfig::ATTACKER_FAR_STRENGTH &&
+        abs(attackerRelativeBearing) > DefenceConfig::ATTACKER_BEHIND_ANGLE_DEG;
+
+    if (ballInResponseZone || attackerOvershot) {
+        roleEpoch = (roleEpoch + 1) & EPOCH_MASK;
+        setRole(Role::ATTACK);
+    }
+}
+
+void Strategy::setRole(Role newRole) {
+    if (rolesInitialized && role == newRole) return;
+    role = newRole;
+    robot.targetHeading = 0;
+    transitionTime = 0;
+    orbitDebounceTime = 0;
+    alignedTime = 0;
+    if (role == Role::ATTACK) {
+        trackingStage = hasFreshBallReading() ? TrackingStage::APPROACH
+                                              : TrackingStage::SEARCH;
     } else {
-        desiredRole = winsScoreTie(teammate) ? Role::ATTACK : Role::DEFENCE;
+        defenceStage = DefenceStage::RETURN;
     }
+}
 
-    if (desiredRole == role) {
-        pendingRole = role;
-        pendingRoleTime = 0;
-        return;
-    }
-
-    if (desiredRole != pendingRole) {
-        pendingRole = desiredRole;
-        pendingRoleTime = 0;
-        return;
-    }
-
-    if (pendingRoleTime >= ScoreConfigs::ROLE_SWITCH_DEBOUNCE_MS) {
-        role = desiredRole;
-        pendingRole = role;
-        pendingRoleTime = 0;
-    }
+uint8_t Strategy::getCommunicationFlags() const {
+    return static_cast<uint8_t>((roleEpoch << EPOCH_SHIFT) |
+        (rolesInitialized ? ROLE_READY_FLAG : 0) |
+        (hasFreshBallReading() ? FRESH_BALL_FLAG : 0) |
+        (startingPositionValid ? POSITION_VALID_FLAG : 0) |
+        ((localBothAttack || bothAttackLatched) ? BOTH_ATTACK_FLAG : 0) |
+        (gameplayActive ? RUNNING_FLAG : 0));
 }
 
 Strategy::Role Strategy::getRole() const{
@@ -64,10 +144,127 @@ Strategy::DefenceStage Strategy::getDefenceStage() const {
 }
 
 void Strategy::attack(const float dt) {
+    if (!rolesInitialized && !standaloneAttack) {
+        robot.drive.stop();
+        return;
+    }
     maneuverAroundBall(dt, 0);
 }
 
 void Strategy::defend(const float dt) {
+    robot.targetHeading = 0;
+    if (!rolesInitialized || dt <= 0.0f) {
+        robot.drive.stop();
+        return;
+    }
+    checkDefenceStage();
+    switch (defenceStage) {
+        case DefenceStage::RETURN:
+            returnToHome(dt);
+            break;
+        case DefenceStage::SHUFFLE:
+            goalBallTrack(dt);
+            break;
+        case DefenceStage::PASSIVE:
+            // Zero translation retains heading correction.
+            robot.drive.moveInDirection(dt, 0, 0);
+            break;
+    }
+}
+
+bool Strategy::isInsideDefenceInset() const {
+    const float x = robot.odometry.getX();
+    const float y = robot.odometry.getY();
+    return x >= FieldConstants::friendlyGoalBoxBottomLeft.x + DefenceConfig::BOX_INSET_MM &&
+           x <= FieldConstants::friendlyGoalBoxTopRight.x - DefenceConfig::BOX_INSET_MM &&
+           y >= FieldConstants::friendlyGoalBoxBottomLeft.y + DefenceConfig::BOX_INSET_MM &&
+           y <= FieldConstants::friendlyGoalBoxTopRight.y - DefenceConfig::BOX_INSET_MM;
+}
+
+void Strategy::checkDefenceStage() {
+    if (!isInGoalBox()) {
+        defenceStage = DefenceStage::RETURN;
+    } else {
+        // Near an edge, keep correcting position even if ball data is missing.
+        defenceStage = hasFreshBallReading() || !isInsideDefenceInset()
+            ? DefenceStage::SHUFFLE : DefenceStage::PASSIVE;
+    }
+}
+
+void Strategy::moveInFieldDirection(float dt, float direction, float speed) {
+    // Field/drive angles: 0 forward, +90 right. Compensate for body yaw.
+    robot.drive.moveInDirection(dt,
+        util::wrapAngle180(direction - robot.imu.getRelativeYaw()), speed);
+}
+
+void Strategy::returnToHome(const float dt) {
+    const float x = robot.odometry.getX();
+    const float y = robot.odometry.getY();
+    // Return toward the nearest point inside the inset box.
+    const float targetX = constrain(x,
+        FieldConstants::friendlyGoalBoxBottomLeft.x + DefenceConfig::BOX_INSET_MM,
+        FieldConstants::friendlyGoalBoxTopRight.x - DefenceConfig::BOX_INSET_MM);
+    const float targetY = constrain(y,
+        FieldConstants::friendlyGoalBoxBottomLeft.y + DefenceConfig::BOX_INSET_MM,
+        FieldConstants::friendlyGoalBoxTopRight.y - DefenceConfig::BOX_INSET_MM);
+    const float dx = targetX - x;
+    const float dy = targetY - y;
+    const float distance = hypot(dx, dy);
+    if (distance == 0.0f) {
+        robot.drive.moveInDirection(dt, 0, 0);
+        return;
+    }
+    const float speed = constrain(distance * DefenceConfig::RETURN_GAIN,
+        DefenceConfig::RETURN_MIN_SPD, DefenceConfig::RETURN_MAX_SPD);
+    moveInFieldDirection(dt, degrees(atan2(dx, dy)), speed);
+}
+
+void Strategy::goalBallTrack(const float dt) {
+    // Check bounds and freshness on every command, including direct calls.
+    checkDefenceStage();
+    if (defenceStage == DefenceStage::RETURN) {
+        returnToHome(dt);
+        return;
+    }
+    if (defenceStage == DefenceStage::PASSIVE) {
+        robot.drive.moveInDirection(dt, 0, 0);
+        return;
+    }
+    const float x = robot.odometry.getX();
+    const float y = robot.odometry.getY();
+    const float left = FieldConstants::friendlyGoalBoxBottomLeft.x + DefenceConfig::BOX_INSET_MM;
+    const float right = FieldConstants::friendlyGoalBoxTopRight.x - DefenceConfig::BOX_INSET_MM;
+    const float back = FieldConstants::friendlyGoalBoxBottomLeft.y + DefenceConfig::BOX_INSET_MM;
+    const float front = FieldConstants::friendlyGoalBoxTopRight.y - DefenceConfig::BOX_INSET_MM;
+
+    float velocityX = 0.0f;
+    if (hasFreshBallReading()) {
+        const float bearing = util::wrapAngle180(
+            robot.irSensor.getDirectionDegrees() + robot.imu.getRelativeYaw());
+        if (abs(bearing) > DefenceConfig::ALIGNMENT_DEADBAND_DEG && abs(bearing) <= 90.0f) {
+            const bool moveRight = bearing > 0.0f;
+            const float remaining = moveRight ? right - x : x - left;
+            const float edgeFactor = constrain(remaining / DefenceConfig::EDGE_SLOWDOWN_MM, 0.0f, 1.0f);
+            const float speed = min(
+                (abs(bearing) - DefenceConfig::ALIGNMENT_DEADBAND_DEG) * DefenceConfig::SHUFFLE_GAIN,
+                DefenceConfig::SHUFFLE_MAX_SPD) * edgeFactor;
+            velocityX = moveRight ? speed : -speed;
+        }
+    }
+
+    const auto correctionSpeed = [](float error) {
+        if (error == 0.0f) return 0.0f;
+        const float speed = constrain(abs(error) * DefenceConfig::BOX_CORRECTION_GAIN,
+            DefenceConfig::BOX_CORRECTION_MIN_SPD, DefenceConfig::SHUFFLE_MAX_SPD);
+        return error > 0.0f ? speed : -speed;
+    };
+    // Never chase outward through a side limit. Inward ball tracking can aid recovery.
+    if (x < left) velocityX = max(velocityX, correctionSpeed(left - x));
+    if (x > right) velocityX = min(velocityX, correctionSpeed(right - x));
+    // Hold current Y throughout the safe band; correct only when near an edge.
+    const float velocityY = correctionSpeed(constrain(y, back, front) - y);
+    const float speed = min(hypot(velocityX, velocityY), DefenceConfig::SHUFFLE_MAX_SPD);
+    moveInFieldDirection(dt, speed > 0.0f ? degrees(atan2(velocityX, velocityY)) : 0.0f, speed);
 }
 
 void Strategy::maneuverAroundBall(const float dt, const float targetBallHeading) {
@@ -77,8 +274,8 @@ void Strategy::maneuverAroundBall(const float dt, const float targetBallHeading)
         case TrackingStage::SEARCH: {
             robot.drive.moveToPoint(
                 dt, AttackConfig::SEARCH_SPD,
-                FieldConstants::friendlyGoalPosition.x,
-                FieldConstants::friendlyGoalPosition.y, robot.odometry);
+                FieldConstants::friendlyGoalBoxPosition.x,
+                FieldConstants::friendlyGoalBoxPosition.y, robot.odometry);
             break;
         }
         case TrackingStage::APPROACH: {
@@ -247,6 +444,7 @@ void Strategy::checkTrackingStage(const float, const float targetBallHeading) {
 }
 
 uint8_t Strategy::calculateAttackScore() {
+    // Retained for telemetry; role handoffs use the explicit conditions above.
     if (!hasFreshBallReading()) return 0;
 
     const float signalStrength = robot.irSensor.getSignalStrength();
@@ -266,7 +464,7 @@ uint8_t Strategy::calculateAttackScore() {
                 score -= ScoreConfigs::DEFENCE_NOT_READY_PENALTY;
             }
             score -= constrain(
-                robot.odometry.getPosition().distanceTo(
+                Position2D(robot.odometry.getX(), robot.odometry.getY()).distanceTo(
                     FieldConstants::friendlyGoalBoxPosition) /
                     ScoreConfigs::DEFENCE_POSITION_FULL_SCALE,
                 0.0f, 1.0f) * ScoreConfigs::DEFENCE_POSITION_PENALTY_MAX;
@@ -302,8 +500,10 @@ bool Strategy::isInGoalBox() {
     float x = robot.odometry.getX();
     float y = robot.odometry.getY();
     return (
-        abs(x) < FieldConstants::friendlyGoalBoxTopRight.x &&
-        y < FieldConstants::friendlyGoalBoxTopRight.y
+        x >= FieldConstants::friendlyGoalBoxBottomLeft.x &&
+        x <= FieldConstants::friendlyGoalBoxTopRight.x &&
+        y >= FieldConstants::friendlyGoalBoxBottomLeft.y &&
+        y <= FieldConstants::friendlyGoalBoxTopRight.y
     );
 }
 
@@ -312,26 +512,7 @@ bool Strategy::isPastOpponentGoalBox() {
 }
 
 bool Strategy::hasFreshBallReading() const {
-    return robot.irSensor.ballFound() &&
+    return robot.irSensor.ballFound() && robot.irSensor.getSignalStrength() > 0.0f &&
            millis() - robot.irSensor.getLastUpdateMillis() <=
                ScoreConfigs::IR_READING_TIMEOUT_MS;
-}
-
-bool Strategy::winsScoreTie(const RobotPacket &teammate) const {
-    // Both robots run this ordering with local/remote values reversed, yielding
-    // complementary roles without adding an ID to the radio packet.
-    const int16_t ownX = static_cast<int16_t>(robot.odometry.getX());
-    const int16_t ownY = static_cast<int16_t>(robot.odometry.getY());
-    const int16_t ownHeading = static_cast<int16_t>(robot.imu.getRelativeYaw());
-    const int16_t ownBearing = static_cast<int16_t>(
-        robot.irSensor.getDirectionDegrees());
-
-    if (ownX != teammate.x) return ownX < teammate.x;
-    if (ownY != teammate.y) return ownY > teammate.y;
-    if (ownHeading != teammate.heading) return ownHeading < teammate.heading;
-    if (ownBearing != teammate.ballBearing) return ownBearing < teammate.ballBearing;
-
-    // The sequence fallback normally differs because packets arrive
-    // asynchronously. A permanent exact tie needs an explicit robot ID.
-    return robot.packetSequence < teammate.sequence;
 }

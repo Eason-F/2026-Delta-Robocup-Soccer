@@ -21,6 +21,7 @@ void Drive::setup() {
 void Drive::moveInDirection(const float &dt, int directionDegrees, int rpm) {
     // Project translation onto wheels mounted at 45-degree intervals.
     lastDirection = directionDegrees;
+    lastTranslationRpm = rpm;
     motor1.setMotorRPM(cos(radians(directionDegrees + 315)) * rpm + rotationRpm, dt);
     motor2.setMotorRPM(cos(radians(directionDegrees + 225)) * rpm + rotationRpm, dt);
     motor3.setMotorRPM(cos(radians(directionDegrees + 45 )) * rpm + rotationRpm, dt);
@@ -48,6 +49,7 @@ void Drive::moveToPoint(const float &dt, const int &rpm, const Position2D &targe
 }
 
 void Drive::turnInDirection(const float &dt, int rpm) {
+    lastTranslationRpm = 0;
     motor1.setMotorRPM(rpm, dt);
     motor2.setMotorRPM(rpm, dt);
     motor3.setMotorRPM(rpm, dt);
@@ -55,6 +57,7 @@ void Drive::turnInDirection(const float &dt, int rpm) {
 }
 
 void Drive::stop() {
+    lastTranslationRpm = 0;
     motor1.brake();
     motor2.brake();
     motor3.brake();

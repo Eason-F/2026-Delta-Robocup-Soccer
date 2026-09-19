@@ -19,11 +19,15 @@
 #include <util/Vector.hpp>
 #include <util/util.hpp>
 #include <util/FieldConstants.hpp>
+#include <util/StartingPreset.hpp>
 
 // Active-low start button configured with the Teensy's internal pull-up.
 class Button {
     private:
         const int buttonPin;
+        bool rawPressed = false;
+        bool stablePressed = false;
+        uint32_t changedAt = 0;
 
     public:
         Button(const int &pin);
@@ -46,6 +50,8 @@ class Robot {
         static constexpr uint8_t LOOP_TIME_MS = 15;
         static constexpr uint16_t LOG_INTERVAL_MS = 100;
         uint8_t packetSequence = 0;
+        elapsedMillis elapsedLastBluetoothUpdate = 20;
+        uint8_t lastCommunicationFlags = 0;
         
         // Heading controller and ball-dependent heading offset.
         static constexpr uint8_t TURN_SPD = 80;
@@ -64,7 +70,9 @@ class Robot {
         // Runtime state and loop clocks.
         elapsedMicros elapsedLastUpdateTime;
         elapsedMillis elapsedLastLoopTime;
-        float targetHeading;
+        float targetHeading = 0;
+        bool wasRunning = false;
+        bool boundaryEscaping = false;
 
         void enforceDefinedRoleBehaviour(const float dt);
 
@@ -76,6 +84,7 @@ class Robot {
 
         // Hardware and service modules.
         Button button;
+        StartingPreset startingPreset;
         UartPacketTransport uartTransport;
         UartIRSensor irSensor;
         RobotCommunication robotCommunication;
