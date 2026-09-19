@@ -61,7 +61,7 @@ class Strategy {
         bool shuffleRight = true;
         elapsedMillis shuffleSwitchTime;
 
-        struct ScoreConfigs {
+        struct ScoreConfigs { // DEPRECATED
             // Each component has a bounded influence so millimetres, degrees,
             // and raw IR strength cannot accidentally dominate one another.
             static constexpr float BALL_STRENGTH_FULL_SCALE = 180.0f;
