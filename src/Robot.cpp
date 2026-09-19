@@ -44,72 +44,107 @@ void Robot::setup() {
 }
 
 void Robot::run() {
-    // Fast path: keep sensor and transport state current on every iteration.
+    updateSensors();
+
+    const bool running = updateRunState();
+    updateStrategy(running);
+    updateMovement(running);
+
+    elapsedLastUpdateTime = 0;
+    logTelemetry();
+}
+
+void Robot::updateSensors() {
     colourSensor.update(elapsedLastUpdateTime);
     uartTransport.update();
     imu.update();
     odometry.update();
+}
 
+bool Robot::updateRunState() {
     const bool startRequested = button.isPressed();
     const bool presetChanged = startingPreset.update(startRequested);
-    // Finish an idle-period click's 500 ms window before starting motion.
+
+    // Wait for a pending single or double press before moving.
     const bool running = startRequested && !startingPreset.hasPendingPress();
+
     if (!running) {
-        drive.stop();
-        imu.resetYawOrigin();
-        targetHeading = 0;
+        stopForIdle();
     }
+
     if (presetChanged || running != wasRunning) {
-        // Null is tracked separately; (0,0) here is only the local sensor origin.
-        odometry.setFieldPosition(startingPreset.hasPosition()
-            ? startingPreset.getPosition() : Position2D{}, 0.0f);
-        elapsedLastLoopTime = 0;
-        elapsedLastUpdateTime = 0;
+        applyStartingPosition();
     }
+
     wasRunning = running;
+    return running;
+}
+
+void Robot::stopForIdle() {
+    drive.stop();
+    imu.resetYawOrigin();
+    targetHeading = 0;
+}
+
+void Robot::applyStartingPosition() {
+    const Position2D position = startingPreset.hasPosition()
+        ? startingPreset.getPosition()
+        : Position2D{};
+
+    odometry.setFieldPosition(position, 0.0f);
+    elapsedLastLoopTime = 0;
+    elapsedLastUpdateTime = 0;
+}
+
+void Robot::updateStrategy(bool running) {
     strategy.configureGame(running, startingPreset.hasPosition(), startingPreset.bothAttack());
     strategy.update();
-    // Exchange roles during idle and boundary escape too.
+
+    // Keep sharing state while idle or escaping a boundary.
     sendBluetoothUpdate();
+}
 
+void Robot::updateMovement(bool running) {
     boundaryEscaping = false;
-    if (running) {
-        // Active path: correct heading continuously and enact strategy periodically.
-        float updateDt = max(static_cast<float>(elapsedLastUpdateTime) / 1000000.0f, 0.000001f);
-        handleHeadingCorrection(updateDt, targetHeading);
-        boundaryEscaping = handleEdgeDetection(updateDt);
-
-        if (!boundaryEscaping && elapsedLastLoopTime >= LOOP_TIME_MS) {
-            float dt = elapsedLastLoopTime / 1000.0f;
-            elapsedLastLoopTime = 0;
-
-            enforceDefinedRoleBehaviour(dt);
-            
-        }
+    if (!running) {
+        return;
     }
 
-    elapsedLastUpdateTime = 0;
-    // Periodic telemetry; uncomment only the fields needed during tuning.
+    const float updateDt = max(
+        static_cast<float>(elapsedLastUpdateTime) / 1000000.0f,
+        0.000001f);
+    handleHeadingCorrection(updateDt, targetHeading);
+    boundaryEscaping = handleEdgeDetection(updateDt);
+
+    const bool strategyUpdateDue = elapsedLastLoopTime >= LOOP_TIME_MS;
+    if (boundaryEscaping || !strategyUpdateDue) {
+        return;
+    }
+
+    const float strategyDt = elapsedLastLoopTime / 1000.0f;
+    elapsedLastLoopTime = 0;
+    enforceDefinedRoleBehaviour(strategyDt);
+}
+
+void Robot::logTelemetry() {
     logger.update([this](Logger &log) {
         log.log("t", static_cast<int>(millis() / 1000.0f));
         log.log("preset", startingPreset.hasPosition());
         log.log("bothAttack", (strategy.getCommunicationFlags() & 0x08) != 0);
-        
-        { // Other sensor readings
+
+        // Ball
         log.log("ballDeg", irSensor.getDirectionDegrees());
         log.log("ballStr", irSensor.getSignalStrength());
         log.log("ballAgeMs", static_cast<uint32_t>(millis() - irSensor.getLastUpdateMillis()));
         // log.log("colour", colourSensor.sensorState());
-        }
 
-        { // Odometry
+        // Position
         log.log("heading", imu.getRelativeYaw());
         log.log("odometryX", odometry.getX());
         log.log("odometryY", odometry.getY());
         log.log("odometryH", odometry.getHeading());
-        }
 
-        { // Drive
+        // Movement
         log.log("role", strategy.getRole() == Strategy::Role::ATTACK ? "ATTACK" : "DEFENCE");
         log.log("stage", strategy.getRole() == Strategy::Role::ATTACK
             ? static_cast<uint8_t>(strategy.getTrackingStage())
@@ -118,9 +153,8 @@ void Robot::run() {
         log.log("moveDeg", drive.lastDirection);
         log.log("m1RPM", drive.motor1.angularVelocityRPM);
         log.log("edgeEscape", boundaryEscaping);
-        }
 
-        { // Bluetooth communications
+        // Teammate
         // log.log("bltX", robotCommunication.getReceivedPacket().x);
         // log.log("bltY", robotCommunication.getReceivedPacket().y);
         // log.log("bltH", robotCommunication.getReceivedPacket().heading);
@@ -131,7 +165,6 @@ void Robot::run() {
         // log.log("bltRole", robotCommunication.getReceivedPacket().role);
         // log.log("bltFlags", robotCommunication.getReceivedPacket().flags);
         // log.log("bltSeq", robotCommunication.getReceivedPacket().sequence);
-        }
     });
 }
 

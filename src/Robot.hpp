@@ -74,6 +74,13 @@ class Robot {
         bool wasRunning = false;
         bool boundaryEscaping = false;
 
+        void updateSensors();
+        bool updateRunState();
+        void stopForIdle();
+        void applyStartingPosition();
+        void updateStrategy(bool running);
+        void updateMovement(bool running);
+        void logTelemetry();
         void enforceDefinedRoleBehaviour(const float dt);
 
         bool handleEdgeDetection(const float dt);
