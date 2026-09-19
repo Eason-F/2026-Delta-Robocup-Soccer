@@ -18,24 +18,31 @@ void Strategy::configureGame(bool running, bool hasStartingPosition, bool forceB
     else if (!hasStartingPosition || forceBothAttack) bothAttackLatched = true;
 }
 
-void Strategy::update() {
-    const bool communicationFresh = robot.robotCommunication.hasReceivedPacket() &&
+bool Strategy::hasFreshCommunication() const {
+    return robot.robotCommunication.hasReceivedPacket() &&
         millis() - robot.robotCommunication.getLastUpdateMillis() <=
             ScoreConfigs::COMMUNICATION_TIMEOUT_MS;
+}
+
+void Strategy::update() {
+    // Read teammate state.
+    const bool communicationFresh = hasFreshCommunication();
     const RobotPacket &teammate = robot.robotCommunication.getReceivedPacket();
     const bool teammateHasPosition = (teammate.flags & POSITION_VALID_FLAG) != 0;
     const bool teammateRequestsAttack = communicationFresh &&
         ((teammate.flags & BOTH_ATTACK_FLAG) != 0 ||
          ((teammate.flags & RUNNING_FLAG) != 0 && !teammateHasPosition));
-    // Once either robot starts with null/override, retain both-attack for this run.
-    if (gameplayActive && teammateRequestsAttack) bothAttackLatched = true;
 
+    // Keep both-attack mode until the run ends.
+    if (gameplayActive && teammateRequestsAttack) {
+        bothAttackLatched = true;
+    }
+
+    // Attack alone when roles cannot be shared safely.
     if (!communicationFresh || localBothAttack || bothAttackLatched ||
         teammateRequestsAttack || !startingPositionValid || !teammateHasPosition) {
         if (!standaloneAttack) {
             setRole(Role::ATTACK);
-            // Re-establish complementary roles when communication returns.
-            // Do not advertise the solo fallback as a coordinated assignment.
             rolesInitialized = false;
             roleEpoch = 0;
             standaloneAttack = true;
@@ -43,64 +50,78 @@ void Strategy::update() {
         return;
     }
 
-    if (teammate.role > static_cast<uint8_t>(Role::DEFENCE)) return;
+    // Ignore invalid role data.
+    if (teammate.role > static_cast<uint8_t>(Role::DEFENCE)) {
+        return;
+    }
+
     standaloneAttack = false;
     const bool teammateReady = (teammate.flags & ROLE_READY_FLAG) != 0;
     const uint8_t teammateEpoch = teammate.flags >> EPOCH_SHIFT;
 
+    // Wait until play starts before choosing roles.
     if (!gameplayActive) {
-        // Presets may still change. Advertise coordinates, but do not lock in
-        // an assignment based on a previous idle-period selection.
         rolesInitialized = false;
         roleEpoch = 0;
         return;
     }
 
+    // Choose the starting roles.
     if (!rolesInitialized) {
         if (teammateReady) {
             roleEpoch = teammateEpoch;
             setRole(teammate.role == static_cast<uint8_t>(Role::ATTACK)
                         ? Role::DEFENCE : Role::ATTACK);
         } else {
-            // Requires calibrated poses with a common field origin.
             const int16_t ownY = static_cast<int16_t>(robot.odometry.getY());
-            if (ownY == teammate.y) return;
+            if (ownY == teammate.y) {
+                return;
+            }
+
             setRole(ownY > teammate.y ? Role::ATTACK : Role::DEFENCE);
         }
+
         rolesInitialized = true;
         return;
     }
 
-    if (!teammateReady) return;
+    // Follow a newer handoff from the teammate.
+    if (!teammateReady) {
+        return;
+    }
+
     const uint8_t epochDifference = (teammateEpoch - roleEpoch) & EPOCH_MASK;
     if (epochDifference != 0) {
-        // Adopt newer handoffs; repeated and older packets cannot undo them.
         if (epochDifference < 4) {
             roleEpoch = teammateEpoch;
             setRole(teammate.role == static_cast<uint8_t>(Role::ATTACK)
                         ? Role::DEFENCE : Role::ATTACK);
         }
+
         return;
     }
 
-    // Only the defender initiates a swap, and only once back in the goal box.
+    // Only a defender in the goal box may start a handoff.
     if (role != Role::DEFENCE ||
         teammate.role != static_cast<uint8_t>(Role::ATTACK) ||
-        !isInGoalBox()) return;
+        !isInGoalBox()) {
+        return;
+    }
 
+    // Respond to a nearby ball in front of the defender.
     const bool ballInResponseZone = hasFreshBallReading() &&
         robot.irSensor.getSignalStrength() >= DefenceConfig::RESPONSE_MIN_STRENGTH &&
         abs(util::wrapAngle180(robot.irSensor.getDirectionDegrees())) <=
             DefenceConfig::RESPONSE_HALF_ANGLE_DEG;
 
-    // A weak ball signal behind the attacker is a proxy for a long return;
-    // the sensor does not yet have a calibrated strength-to-distance mapping.
+    // Take over when the attacker has passed a distant ball.
     const float attackerRelativeBearing = util::wrapAngle180(
         static_cast<float>(teammate.ballBearing));
     const bool attackerOvershot = (teammate.flags & FRESH_BALL_FLAG) != 0 &&
         teammate.ballStrength < DefenceConfig::ATTACKER_FAR_STRENGTH &&
         abs(attackerRelativeBearing) > DefenceConfig::ATTACKER_BEHIND_ANGLE_DEG;
 
+    // Start a new handoff.
     if (ballInResponseZone || attackerOvershot) {
         roleEpoch = (roleEpoch + 1) & EPOCH_MASK;
         setRole(Role::ATTACK);
