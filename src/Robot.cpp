@@ -208,13 +208,6 @@ void Robot::handleHeadingCorrection(const float dt, const float targetHeading) {
     // Logger::queue("headingAdj", adjustmentRate);
 }
 
-void Robot::handleTargetHeading() {
-    targetHeading = 0;
-    if (abs(irSensor.getDirectionDegrees()) <= BALL_TILT_RANGE) {
-        targetHeading = constrain(-irSensor.getDirectionDegrees(), -BALL_TILT_MAX, BALL_TILT_MAX);
-    }
-}
-
 void Robot::sendBluetoothUpdate() {
     const uint8_t flags = strategy.getCommunicationFlags();
     // Normal telemetry at 50 Hz; role handoffs bypass the rate limit.

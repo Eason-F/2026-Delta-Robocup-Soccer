@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <util/PID.hpp>
+#include <util/FieldConstants.hpp>
 
 class Robot;
 
@@ -42,8 +43,8 @@ class Strategy {
         TrackingStage getTrackingStage() const;
         void checkTrackingStage(const float dt, const float targetBallHeading);
         void maneuverAroundBall(const float dt, const float targetBallHeading);
-        void calculateAngleToGoal();
-        void attackTransition(const float dt); // charge forward from goal
+        float calculateAngleToGoal() const;
+        void pushCapturedBallToGoal(const float dt);
 
         
         // defence related
@@ -100,6 +101,16 @@ class Strategy {
         uint8_t roleEpoch = 0;
 
         struct AttackConfig {
+            // Positions where goal tilt aims
+            static constexpr Position2D GOAL_AIM_LEFT = {
+                FieldConstants::opponentGoalLeftPost.x + 70.0f,
+                FieldConstants::opponentGoalLeftPost.y
+            };
+            static constexpr Position2D GOAL_AIM_RIGHT = {
+                FieldConstants::opponentGoalRightPost.x - 70.0f,
+                FieldConstants::opponentGoalRightPost.y
+            };
+
             // Search and approach tuning (motor targets are in RPM).
             static constexpr uint16_t SEARCH_SPD = 270;
             static constexpr uint16_t APPROACH_SPD = 130;
@@ -125,6 +136,8 @@ class Strategy {
             static constexpr uint16_t ENTER_ALIGNMENT_TOLERANCE = 15;
             static constexpr uint16_t EXIT_ALIGNMENT_TOLERANCE = 30;
             static constexpr uint16_t HEADING_DEADBAND = 7;
+            static constexpr float GOAL_ALIGNMENT_FULL_SPEED_DEG = 60.0f;
+            static constexpr float GOAL_ALIGNMENT_MIN_SPEED_FACTOR = 0.25f;
             static constexpr uint16_t SPEED_RAMP_MAX_MS = 1000;
             static constexpr uint16_t ALIGNED_DEBOUNCE_MS = 0;
         };
@@ -132,6 +145,10 @@ class Strategy {
         elapsedMillis transitionTime;
         elapsedMillis orbitDebounceTime;
         elapsedMillis alignedTime;
+        Position2D capturedGoalTarget = AttackConfig::GOAL_AIM_LEFT;
+        bool capturedGoalTargetLocked = false;
+
+        void transitionToTrackingStage(TrackingStage nextStage);
         
         PIDController approachPID = PIDController(0.5, 0, 0, 0.0, 1.0);
         PIDController orbitTangentPID = PIDController(0.04, 0, 0.001, -1.0, 1.0);

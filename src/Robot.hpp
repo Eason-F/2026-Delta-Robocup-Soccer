@@ -85,7 +85,6 @@ class Robot {
 
         bool handleEdgeDetection(const float dt);
         void handleHeadingCorrection(const float dt, const float targetHeading);
-        void handleTargetHeading();
 
         void sendBluetoothUpdate();
 
