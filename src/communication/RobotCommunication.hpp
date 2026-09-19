@@ -17,6 +17,8 @@ struct RobotPacket {
     uint8_t attackScore;
     uint8_t state;
     uint8_t role;
+    // Bits: 0 roles ready, 1 fresh ball, 2 preset valid, 3 both attack,
+    // 4 start switch on, 5-7 wrapping handoff epoch. Update both robots together.
     uint8_t flags;
     uint8_t sequence;
 };

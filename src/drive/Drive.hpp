@@ -50,6 +50,7 @@ class Drive {
         void stop();
 
         float lastDirection = 0;
+        int lastTranslationRpm = 0;
         float rotationRpm = 0;
 
     private: 

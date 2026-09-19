@@ -4,7 +4,6 @@
 #include <util/PID.hpp>
 
 class Robot;
-struct RobotPacket;
 
 class Strategy {
     public:
@@ -32,8 +31,10 @@ class Strategy {
         explicit Strategy(Robot &robot);
 
         void update();
+        void configureGame(bool running, bool hasStartingPosition, bool forceBothAttack);
         Role getRole() const;
         uint8_t calculateAttackScore(); // returns 0-255; higher means more suitable to attack
+        uint8_t getCommunicationFlags() const;
         void attack(const float dt);
         void defend(const float dt);
 
@@ -47,6 +48,7 @@ class Strategy {
         
         // defence related
         DefenceStage getDefenceStage() const;
+        void checkDefenceStage();
         void returnToHome(const float dt);
         void goalBallTrack(const float dt); // shuffle around the goal while following the ball
 
@@ -79,24 +81,35 @@ class Strategy {
 
             static constexpr uint16_t IR_READING_TIMEOUT_MS = 250;
             static constexpr uint16_t COMMUNICATION_TIMEOUT_MS = 500;
-            static constexpr uint8_t ROLE_SWITCH_MARGIN = 8;
-            static constexpr uint16_t ROLE_SWITCH_DEBOUNCE_MS = 200;
         };
 
-        Role pendingRole = Role::ATTACK;
-        elapsedMillis pendingRoleTime;
+        // Keep the 14-byte packet: five status bits and a three-bit handoff epoch.
+        static constexpr uint8_t ROLE_READY_FLAG = 0x01;
+        static constexpr uint8_t FRESH_BALL_FLAG = 0x02;
+        static constexpr uint8_t POSITION_VALID_FLAG = 0x04;
+        static constexpr uint8_t BOTH_ATTACK_FLAG = 0x08;
+        static constexpr uint8_t RUNNING_FLAG = 0x10;
+        static constexpr uint8_t EPOCH_SHIFT = 5;
+        static constexpr uint8_t EPOCH_MASK = 0x07;
+        bool rolesInitialized = false;
+        bool standaloneAttack = false;
+        bool gameplayActive = false;
+        bool startingPositionValid = false;
+        bool localBothAttack = false;
+        bool bothAttackLatched = false;
+        uint8_t roleEpoch = 0;
 
         struct AttackConfig {
             // Search and approach tuning (motor targets are in RPM).
-            static constexpr uint16_t SEARCH_SPD = 100;
+            static constexpr uint16_t SEARCH_SPD = 270;
             static constexpr uint16_t APPROACH_SPD = 130;
             static constexpr uint16_t TRANSITION_MIN_MS = 300;
             static constexpr uint16_t TRANSITION_TIMEOUT = 700;
 
             // Orbit controller tuning and transition hysteresis.
             static constexpr uint16_t ORBIT_APPROACH_SPD = 130;
-            static constexpr uint16_t ORBIT_SPD = 150;
-            static constexpr uint16_t ORBIT_DISTANCE = 55;
+            static constexpr uint16_t ORBIT_SPD = 120;
+            static constexpr uint16_t ORBIT_DISTANCE = 50;
             static constexpr uint16_t ORBIT_ENTRY_TOLERANCE = 20;
             static constexpr uint16_t ORBIT_EXIT_TOLERANCE = 30;
             static constexpr uint16_t ORBIT_DEBOUNCE_MS = 100;
@@ -125,11 +138,41 @@ class Strategy {
         PIDController orbitDistancePID = PIDController(0.3, 0, 0.001, -0.2, 1.0);
 
         struct DefenceConfig {
-            
+            // Clearance from every goal-box edge used for normal tracking.
+            static constexpr float BOX_INSET_MM = 50.0f;
+            // Proportional return speed in RPM per millimetre outside the inset box.
+            static constexpr float RETURN_GAIN = 3.0f;
+            // Speed limits while returning from outside the full goal box.
+            static constexpr float RETURN_MAX_SPD = 270.0f;
+            static constexpr float RETURN_MIN_SPD = 100.0f;
+            // Inset-edge correction in RPM per millimetre outside the safe area.
+            static constexpr float BOX_CORRECTION_GAIN = 1.2f;
+            // Minimum speed used to correct drift beyond an inset edge.
+            static constexpr float BOX_CORRECTION_MIN_SPD = 35.0f;
+            // Lateral tracking speed in RPM per degree outside the deadband.
+            static constexpr float SHUFFLE_GAIN = 3.0f;
+            // Maximum speed for lateral tracking and inset-edge correction.
+            static constexpr float SHUFFLE_MAX_SPD = 100.0f;
+            // Ball-bearing tolerance within which the defender stays centred.
+            static constexpr float ALIGNMENT_DEADBAND_DEG = 20.0f;
+            // Distance over which lateral movement slows near a side edge.
+            static constexpr float EDGE_SLOWDOWN_MM = 100.0f;
+            // Defender handoff response cone, measured either side of forward.
+            static constexpr float RESPONSE_HALF_ANGLE_DEG = 60.0f;
+            // Minimum local ball strength required to initiate a handoff.
+            static constexpr float RESPONSE_MIN_STRENGTH = 30.0f;
+            // Robot-relative bearing beyond which the attacker has overshot the ball.
+            static constexpr float ATTACKER_BEHIND_ANGLE_DEG = 130.0f;
+            // Maximum attacker ball strength treated as a distant overshoot.
+            static constexpr float ATTACKER_FAR_STRENGTH = 45.0f;
         };
+
+        void setRole(Role newRole);
+        void moveInFieldDirection(float dt, float direction, float speed);
+        bool isInsideDefenceInset() const;
+        bool hasFreshCommunication() const;
 
         bool isInGoalBox();
         bool isPastOpponentGoalBox();
         bool hasFreshBallReading() const;
-        bool winsScoreTie(const RobotPacket &teammate) const;
 };

@@ -14,7 +14,7 @@ class Motor {
         static constexpr int MAX_RPM = 250;
         const String name;
 
-        float angularVelocityRPM;
+        float angularVelocityRPM = 0;
 
         ~Motor();
         Motor(const String &name, const int &directionPin1, const int &directionPin2,  const int &encoderPin1, const int &encoderPin2, PIDController &pidController);

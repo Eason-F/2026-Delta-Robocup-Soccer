@@ -34,7 +34,7 @@ float OpticalOdometry::getHeading() const {
 }
 
 Position2D OpticalOdometry::getPosition() const {
-    return {position.x, position.y};
+    return {getX(), getY()};
 }
 
 void OpticalOdometry::update() {
@@ -43,16 +43,34 @@ void OpticalOdometry::update() {
 
 void OpticalOdometry::setPosition(sfe_otos_pose2d_t &pose) {
     odometrySensor.setPosition(pose);
+    position = pose;
+}
+
+void OpticalOdometry::setFieldPosition(const Position2D &fieldPosition, float heading) {
+    // Reverse the calibrated scale used by getX()/getY(); OTOS uses metres.
+    sfe_otos_pose2d_t pose = {
+        fieldPosition.x / LINEAR_MULTIPLIER,
+        fieldPosition.y / LINEAR_MULTIPLIER,
+        heading
+    };
+    setPosition(pose);
 }
 
 void OpticalOdometry::resetPosition() {
-    odometrySensor.calibrateImu(255, true);
     odometrySensor.resetTracking();
+    position = {};
 }
 
 void OpticalOdometry::boundaryAlignOdometry(const Vector &boundaryVector, const float &heading) {
-    float x = boundaryVector.x;
-    float y = boundaryVector.y;
+    if (boundaryVector.magnitude <= 0.1f) return;
+    // Colour vectors encode 0 degrees = robot front using (cos, sin).
+    // Field coordinates instead use +Y forward and +X right. Rotate by yaw,
+    // then map the angle into field axes before identifying the touched wall.
+    const float fieldAngle = boundaryVector.angle + radians(heading);
+    const float normalX = sin(fieldAngle);
+    const float normalY = cos(fieldAngle);
+    // A diagonal/cancelling observation cannot reliably identify a single wall.
+    if (max(abs(normalX), abs(normalY)) < BOUNDARY_AXIS_ALIGNMENT_MIN) return;
     float boundaryX = 
         FieldConstants::fieldWidth / 2 - 
         FieldConstants::boundaryInset - 
@@ -64,10 +82,12 @@ void OpticalOdometry::boundaryAlignOdometry(const Vector &boundaryVector, const 
         FieldConstants::boundaryLineWidth -
         BOUNDARY_CORRECTION_OFFSET;
 
-    sfe_otos_pose2d_t position = {
-        x * boundaryX,
-        y * boundaryY,
-        heading
-    };
-    setPosition(position);
+    Position2D corrected = getPosition();
+    if (abs(normalX) > abs(normalY)) {
+        corrected.x = normalX > 0.0f ? boundaryX : -boundaryX;
+    } else {
+        corrected.y = normalY > 0.0f ? boundaryY : -boundaryY;
+    }
+    // A rear/front line fixes Y only; a side line fixes X only.
+    setFieldPosition(corrected, heading);
 }

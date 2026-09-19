@@ -6,10 +6,18 @@ Button::Button(const int &pin): buttonPin(pin) {}
 
 void Button::setup() {
     pinMode(buttonPin, INPUT_PULLUP);
+    rawPressed = stablePressed = !digitalRead(buttonPin);
+    changedAt = millis();
 }
 
 bool Button::isPressed() {
-    return !digitalRead(buttonPin);
+    const bool pressed = !digitalRead(buttonPin);
+    if (pressed != rawPressed) {
+        rawPressed = pressed;
+        changedAt = millis();
+    }
+    if (millis() - changedAt >= StartingPreset::DEBOUNCE_MS) stablePressed = rawPressed;
+    return stablePressed;
 }
 
 Robot::Robot()
@@ -25,6 +33,7 @@ Robot::Robot()
 
 void Robot::setup() {
     button.setup();
+    startingPreset.setup();
     colourSensor.setup();
     drive.setup();
     uartTransport.setup();
@@ -35,60 +44,117 @@ void Robot::setup() {
 }
 
 void Robot::run() {
-    // Fast path: keep sensor and transport state current on every iteration.
+    updateSensors();
+
+    const bool running = updateRunState();
+    updateStrategy(running);
+    updateMovement(running);
+
+    elapsedLastUpdateTime = 0;
+    logTelemetry();
+}
+
+void Robot::updateSensors() {
     colourSensor.update(elapsedLastUpdateTime);
     uartTransport.update();
     imu.update();
     odometry.update();
+}
 
-    strategy.update();
+bool Robot::updateRunState() {
+    const bool startRequested = button.isPressed();
+    const bool presetChanged = startingPreset.update(startRequested);
 
-    if (button.isPressed()) {
-        // Active path: correct heading continuously and enact strategy periodically.
-        float updateDt = elapsedLastUpdateTime / 1000000.0f;
-        handleHeadingCorrection(updateDt, targetHeading);
-        conditionallyBreakLoop(handleEdgeDetection(updateDt));
+    // Wait for a pending single or double press before moving.
+    const bool running = startRequested && !startingPreset.hasPendingPress();
 
-        if (elapsedLastLoopTime >= LOOP_TIME_MS) {
-            float dt = elapsedLastLoopTime / 1000.0f;
-            elapsedLastLoopTime = 0;
-
-            enforceDefinedRoleBehaviour(dt);
-            
-        }
-        sendBluetoothUpdate();
-    } else {
-        // Safe idle path: stop motion and redefine the starting pose.
-        drive.stop();
-        imu.resetYawOrigin();
-        odometry.resetPosition();
+    if (!running) {
+        stopForIdle();
     }
 
+    if (presetChanged || running != wasRunning) {
+        applyStartingPosition();
+    }
+
+    wasRunning = running;
+    return running;
+}
+
+void Robot::stopForIdle() {
+    drive.stop();
+    imu.resetYawOrigin();
+    targetHeading = 0;
+}
+
+void Robot::applyStartingPosition() {
+    const Position2D position = startingPreset.hasPosition()
+        ? startingPreset.getPosition()
+        : Position2D{};
+
+    odometry.setFieldPosition(position, 0.0f);
+    elapsedLastLoopTime = 0;
     elapsedLastUpdateTime = 0;
-    // Periodic telemetry; uncomment only the fields needed during tuning.
+}
+
+void Robot::updateStrategy(bool running) {
+    strategy.configureGame(running, startingPreset.hasPosition(), startingPreset.bothAttack());
+    strategy.update();
+
+    // Keep sharing state while idle or escaping a boundary.
+    sendBluetoothUpdate();
+}
+
+void Robot::updateMovement(bool running) {
+    boundaryEscaping = false;
+    if (!running) {
+        return;
+    }
+
+    const float updateDt = max(
+        static_cast<float>(elapsedLastUpdateTime) / 1000000.0f,
+        0.000001f);
+    handleHeadingCorrection(updateDt, targetHeading);
+    boundaryEscaping = handleEdgeDetection(updateDt);
+
+    const bool strategyUpdateDue = elapsedLastLoopTime >= LOOP_TIME_MS;
+    if (boundaryEscaping || !strategyUpdateDue) {
+        return;
+    }
+
+    const float strategyDt = elapsedLastLoopTime / 1000.0f;
+    elapsedLastLoopTime = 0;
+    enforceDefinedRoleBehaviour(strategyDt);
+}
+
+void Robot::logTelemetry() {
     logger.update([this](Logger &log) {
         log.log("t", static_cast<int>(millis() / 1000.0f));
-        
-        { // Other sensor readings
-        // log.log("dir", irSensor.getDirectionDegrees());
-        // log.log("str", irSensor.getSignalStrength());
-        // log.log("ballFound", irSensor.ballFound());
-        // log.log("colour", colourSensor.sensorState());
-        }
+        log.log("preset", startingPreset.hasPosition());
+        log.log("bothAttack", (strategy.getCommunicationFlags() & 0x08) != 0);
 
-        { // Odometry
+        // Ball
+        log.log("ballDeg", irSensor.getDirectionDegrees());
+        log.log("ballStr", irSensor.getSignalStrength());
+        log.log("ballAgeMs", static_cast<uint32_t>(millis() - irSensor.getLastUpdateMillis()));
+        // log.log("colour", colourSensor.sensorState());
+
+        // Position
         log.log("heading", imu.getRelativeYaw());
         log.log("odometryX", odometry.getX());
         log.log("odometryY", odometry.getY());
         log.log("odometryH", odometry.getHeading());
-        }
 
-        { // Drive
-        // log.log("rpm", drive.motor1.angularVelocityRPM);
-        // log.log("movementDir", drive.lastDirection);
-        }
+        // Movement
+        log.log("role", strategy.getRole() == Strategy::Role::ATTACK ? "ATTACK" : "DEFENCE");
+        log.log("stage", strategy.getRole() == Strategy::Role::ATTACK
+            ? static_cast<uint8_t>(strategy.getTrackingStage())
+            : static_cast<uint8_t>(strategy.getDefenceStage()));
+        log.log("driveRPM", drive.lastTranslationRpm);
+        log.log("moveDeg", drive.lastDirection);
+        log.log("m1RPM", drive.motor1.angularVelocityRPM);
+        log.log("edgeEscape", boundaryEscaping);
 
-        { // Bluetooth communications
+        // Teammate
         // log.log("bltX", robotCommunication.getReceivedPacket().x);
         // log.log("bltY", robotCommunication.getReceivedPacket().y);
         // log.log("bltH", robotCommunication.getReceivedPacket().heading);
@@ -99,7 +165,6 @@ void Robot::run() {
         // log.log("bltRole", robotCommunication.getReceivedPacket().role);
         // log.log("bltFlags", robotCommunication.getReceivedPacket().flags);
         // log.log("bltSeq", robotCommunication.getReceivedPacket().sequence);
-        }
     });
 }
 
@@ -151,6 +216,9 @@ void Robot::handleTargetHeading() {
 }
 
 void Robot::sendBluetoothUpdate() {
+    const uint8_t flags = strategy.getCommunicationFlags();
+    // Normal telemetry at 50 Hz; role handoffs bypass the rate limit.
+    if (elapsedLastBluetoothUpdate < 20 && flags == lastCommunicationFlags) return;
     uint8_t stage = (strategy.getRole() == Strategy::Role::ATTACK) ? 
         (uint8_t) strategy.getTrackingStage() : 
         (uint8_t) strategy.getDefenceStage();
@@ -159,13 +227,16 @@ void Robot::sendBluetoothUpdate() {
         static_cast<int16_t>(odometry.getY()),
         static_cast<int16_t>(imu.getRelativeYaw()),
         static_cast<int16_t>(irSensor.getDirectionDegrees()),
-        static_cast<uint8_t>(irSensor.getSignalStrength()),
+        static_cast<uint8_t>(constrain(irSensor.getSignalStrength(), 0.0f, 255.0f)),
         static_cast<uint8_t>(strategy.calculateAttackScore()), // attack score
         static_cast<uint8_t>(stage), // stage, depends on attack/defend
         static_cast<uint8_t>(strategy.getRole()), // role (attack/defend)
-        static_cast<uint8_t>(0), // flags
+        flags,
         static_cast<uint8_t>(packetSequence)
     };
-    robotCommunication.sendPacket(packet);
-    if (packetSequence < 256) packetSequence++; else packetSequence = 0;
+    if (robotCommunication.sendPacket(packet)) {
+        elapsedLastBluetoothUpdate = 0;
+        lastCommunicationFlags = flags;
+        ++packetSequence;
+    }
 }
