@@ -63,13 +63,10 @@ void OpticalOdometry::resetPosition() {
 
 void OpticalOdometry::boundaryAlignOdometry(const Vector &boundaryVector, const float &heading) {
     if (boundaryVector.magnitude <= 0.1f) return;
-    // Colour vectors encode 0 degrees = robot front using (cos, sin).
-    // Field coordinates instead use +Y forward and +X right. Rotate by yaw,
-    // then map the angle into field axes before identifying the touched wall.
     const float fieldAngle = boundaryVector.angle + radians(heading);
     const float normalX = sin(fieldAngle);
     const float normalY = cos(fieldAngle);
-    // A diagonal/cancelling observation cannot reliably identify a single wall.
+
     if (max(abs(normalX), abs(normalY)) < BOUNDARY_AXIS_ALIGNMENT_MIN) return;
     float boundaryX = 
         FieldConstants::fieldWidth / 2 - 
@@ -88,6 +85,7 @@ void OpticalOdometry::boundaryAlignOdometry(const Vector &boundaryVector, const 
     } else {
         corrected.y = normalY > 0.0f ? boundaryY : -boundaryY;
     }
-    // A rear/front line fixes Y only; a side line fixes X only.
+    if (corrected.distanceTo(getPosition()) > BOUNDARY_CORRECTION_TOLERANCE_MAX) return;
+
     setFieldPosition(corrected, heading);
 }
