@@ -14,7 +14,8 @@ class Strategy {
             APPROACH,
             ORBIT,
             TRANSITION,
-            CAPTURED
+            CAPTURED,
+            RETURN // return to neutral point
         };
 
         // defence state relating to defending role
@@ -44,6 +45,11 @@ class Strategy {
         void checkTrackingStage(const float dt, const float targetBallHeading);
         void maneuverAroundBall(const float dt, const float targetBallHeading);
         void orbitAroundBall(const float dt, const float targetBallHeading);
+        void orbitAroundPoint(const float dt, const float targetHeading,
+                              const float currentHeading,
+                              const float currentDistance);
+        void returnToNeutralPoint(const float dt);
+        float ballOutsideBoundaryConfidence();
         float calculateAngleToGoal() const;
         void pushCapturedBallToGoal(const float dt);
 
@@ -112,7 +118,7 @@ class Strategy {
                 FieldConstants::opponentGoalRightPost.y
             };
 
-            // Search and approach tuning (motor targets are in RPM).
+            // Search and approach tuning 
             static constexpr uint16_t SEARCH_SPD = 270;
             static constexpr uint16_t APPROACH_SPD = 130;
             static constexpr uint16_t TRANSITION_MIN_MS = 300;
@@ -141,11 +147,16 @@ class Strategy {
             static constexpr float GOAL_ALIGNMENT_MIN_SPEED_FACTOR = 0.25f;
             static constexpr uint16_t SPEED_RAMP_MAX_MS = 1000;
             static constexpr uint16_t ALIGNED_DEBOUNCE_MS = 0;
+
+            // Ball outside field inferences
+            static constexpr float PROXIMITY_RANGE_MM = 300.0f;
+            static constexpr float OUTSIDE_BOUNDARY_CONFIDENCE_THRESHOLD = 0.9f;
         };
 
         elapsedMillis transitionTime;
         elapsedMillis orbitDebounceTime;
         elapsedMillis alignedTime;
+        Position2D returnTargetPosition = AttackConfig::GOAL_AIM_LEFT;
         Position2D capturedGoalTarget = AttackConfig::GOAL_AIM_LEFT;
         bool capturedGoalTargetLocked = false;
 
