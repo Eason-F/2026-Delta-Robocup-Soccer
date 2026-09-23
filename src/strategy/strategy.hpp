@@ -43,6 +43,7 @@ class Strategy {
         TrackingStage getTrackingStage() const;
         void checkTrackingStage(const float dt, const float targetBallHeading);
         void maneuverAroundBall(const float dt, const float targetBallHeading);
+        void orbitAroundBall(const float dt, const float targetBallHeading);
         float calculateAngleToGoal() const;
         void pushCapturedBallToGoal(const float dt);
 

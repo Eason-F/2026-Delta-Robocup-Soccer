@@ -171,7 +171,17 @@ void Strategy::attack(const float dt) {
         robot.drive.stop();
         return;
     }
-    maneuverAroundBall(dt, 0);
+    switch (trackingStage) {
+         case TrackingStage::TRANSITION: {
+            const float direction =
+                (abs(robot.irSensor.getDirectionDegrees()) <=
+                 AttackConfig::HEADING_DEADBAND) ? 0.0f : robot.irSensor.getDirectionDegrees();
+            robot.drive.moveInDirection(dt, direction,AttackConfig::TRANSITION_SPD);
+            break;
+        }
+        default:
+            maneuverAroundBall(dt, calculateAngleToGoal());
+    }
 }
 
 void Strategy::defend(const float dt) {
@@ -302,57 +312,23 @@ void Strategy::maneuverAroundBall(const float dt, const float targetBallHeading)
             break;
         }
         case TrackingStage::APPROACH: {
-            float speed = approachPID.adjustmentValue(
-                    dt, AttackConfig::ORBIT_DISTANCE, robot.irSensor.getSignalStrength()
-                ) * AttackConfig::APPROACH_SPD;
+            float speed = 
+                approachPID.adjustmentValue(
+                    dt, AttackConfig::ORBIT_DISTANCE, robot.irSensor.getSignalStrength()) * 
+                    AttackConfig::APPROACH_SPD;
             robot.drive.moveInDirection(dt, robot.irSensor.getDirectionDegrees(), speed);
             break;
         }
         case TrackingStage::ORBIT: {
-            float headingError = util::wrapAngle180(
-                    robot.irSensor.getDirectionDegrees() - 
-                    targetBallHeading - 
-                    robot.targetHeading
-                );
-            float distanceError = AttackConfig::ORBIT_DISTANCE - robot.irSensor.getSignalStrength();
-
-            float approach = orbitDistancePID.adjustmentValue(dt, distanceError);
-            float tangent = -orbitTangentPID.adjustmentValue(dt, headingError);
-
-            float orbitFactor = 1.0f - min(max(0.0, distanceError) / AttackConfig::ORBIT_DISTANCE, 1.0f);
-            tangent *= orbitFactor;
-
-            float approachSpeed = approach * AttackConfig::ORBIT_APPROACH_SPD;
-            float tangentSpeed = tangent * AttackConfig::ORBIT_SPD;
-            Vector approachVector = Vector(
-                Vector::AngMag {}, 
-                robot.irSensor.getDirectionRadians(), 
-                approachSpeed
-            );
-            Vector tangentVector = Vector(
-                Vector::Position {}, 
-                sin(robot.irSensor.getDirectionRadians()), 
-                -cos(robot.irSensor.getDirectionRadians())
-            ) * tangentSpeed;
-            Vector finalVector = tangentVector + approachVector;
-
-            float movementAngle = degrees(finalVector.angle);
-            float movementSpeed = min(finalVector.magnitude, AttackConfig::ORBIT_SPD);
-            robot.drive.moveInDirection(dt, movementAngle, movementSpeed);
-            break;
-        }
-        case TrackingStage::TRANSITION: {
-            const float direction =
-                (abs(robot.irSensor.getDirectionDegrees()) <=
-                 AttackConfig::HEADING_DEADBAND)
-                    ? 0.0f
-                    : robot.irSensor.getDirectionDegrees();
-            robot.drive.moveInDirection(dt, direction,
-                                        AttackConfig::TRANSITION_SPD);
+            orbitAroundBall(dt, targetBallHeading);
             break;
         }
         case TrackingStage::CAPTURED: {
             pushCapturedBallToGoal(dt);
+            break;
+        }
+        default: {
+            robot.drive.stop(); // should never happen because transition is handled elsewhere
             break;
         }
     }
@@ -475,6 +451,39 @@ float Strategy::calculateAngleToGoal() const {
     return robotPosition.angleTo(target);
 }
 
+void Strategy::orbitAroundBall(const float dt, const float targetBallHeading) {
+    float headingError = util::wrapAngle180(
+            robot.irSensor.getDirectionDegrees() - 
+            targetBallHeading - 
+            robot.targetHeading
+        );
+    float distanceError = AttackConfig::ORBIT_DISTANCE - robot.irSensor.getSignalStrength();
+
+    float approach = orbitDistancePID.adjustmentValue(dt, distanceError);
+    float tangent = -orbitTangentPID.adjustmentValue(dt, headingError);
+
+    float orbitFactor = 1.0f - min(max(0.0, distanceError) / AttackConfig::ORBIT_DISTANCE, 1.0f);
+    tangent *= orbitFactor;
+
+    float approachSpeed = approach * AttackConfig::ORBIT_APPROACH_SPD;
+    float tangentSpeed = tangent * AttackConfig::ORBIT_SPD;
+    Vector approachVector = Vector(
+        Vector::AngMag {}, 
+        robot.irSensor.getDirectionRadians(), 
+        approachSpeed
+    );
+    Vector tangentVector = Vector(
+        Vector::Position {}, 
+        sin(robot.irSensor.getDirectionRadians()), 
+        -cos(robot.irSensor.getDirectionRadians())
+    ) * tangentSpeed;
+    Vector finalVector = tangentVector + approachVector;
+
+    float movementAngle = degrees(finalVector.angle);
+    float movementSpeed = min(finalVector.magnitude, AttackConfig::ORBIT_SPD);
+    robot.drive.moveInDirection(dt, movementAngle, movementSpeed);
+}
+
 void Strategy::pushCapturedBallToGoal(const float dt) {
     const float goalHeading = calculateAngleToGoal();
     robot.targetHeading = goalHeading;
@@ -485,11 +494,10 @@ void Strategy::pushCapturedBallToGoal(const float dt) {
         1.0f - headingError / AttackConfig::GOAL_ALIGNMENT_FULL_SPEED_DEG,
         AttackConfig::GOAL_ALIGNMENT_MIN_SPEED_FACTOR, 1.0f);
 
-    const float rampTime = max(
-        static_cast<float>(alignedTime) - AttackConfig::ALIGNED_DEBOUNCE_MS,
-        0.0f);
-    const float rampFactor = min(
-        (rampTime + 100.0f) / AttackConfig::SPEED_RAMP_MAX_MS, 1.0f);
+    const float rampTime = 
+        max(static_cast<float>(alignedTime) - AttackConfig::ALIGNED_DEBOUNCE_MS, 0.0f);
+    const float rampFactor = 
+        min((rampTime + 100.0f) / AttackConfig::SPEED_RAMP_MAX_MS, 1.0f);
     const float speed =
         (AttackConfig::CAPTURED_MIN_SPD +
          rampFactor * (AttackConfig::CAPTURED_MAX_SPD -
@@ -498,9 +506,8 @@ void Strategy::pushCapturedBallToGoal(const float dt) {
 
     const float ballDirection =
         abs(robot.irSensor.getDirectionDegrees()) <=
-                AttackConfig::HEADING_DEADBAND
-            ? 0.0f
-            : robot.irSensor.getDirectionDegrees();
+                AttackConfig::HEADING_DEADBAND ? 0.0f : 
+                robot.irSensor.getDirectionDegrees();
     robot.drive.moveInDirection(dt, ballDirection, speed);
 }
 
