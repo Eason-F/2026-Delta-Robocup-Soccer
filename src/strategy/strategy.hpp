@@ -197,7 +197,6 @@ class Strategy {
         };
 
         void setRole(Role newRole);
-        void moveInFieldDirection(float dt, float direction, float speed);
         bool isInsideDefenceInset() const;
         bool hasFreshCommunication() const;
 

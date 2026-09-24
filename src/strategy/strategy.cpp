@@ -224,12 +224,6 @@ void Strategy::checkDefenceStage() {
     }
 }
 
-void Strategy::moveInFieldDirection(float dt, float direction, float speed) {
-    // Field/drive angles: 0 forward, +90 right. Compensate for body yaw.
-    robot.drive.moveInDirection(dt,
-        util::wrapAngle180(direction - robot.imu.getRelativeYaw()), speed);
-}
-
 void Strategy::returnToHome(const float dt) {
     const float x = robot.odometry.getX();
     const float y = robot.odometry.getY();
@@ -240,16 +234,8 @@ void Strategy::returnToHome(const float dt) {
     const float targetY = constrain(y,
         FieldConstants::friendlyGoalBoxBottomLeft.y + DefenceConfig::BOX_INSET_MM,
         FieldConstants::friendlyGoalBoxTopRight.y - DefenceConfig::BOX_INSET_MM);
-    const float dx = targetX - x;
-    const float dy = targetY - y;
-    const float distance = hypot(dx, dy);
-    if (distance == 0.0f) {
-        robot.drive.moveInDirection(dt, 0, 0);
-        return;
-    }
-    const float speed = constrain(distance * DefenceConfig::RETURN_GAIN,
-        DefenceConfig::RETURN_MIN_SPD, DefenceConfig::RETURN_MAX_SPD);
-    moveInFieldDirection(dt, degrees(atan2(dx, dy)), speed);
+    const Position2D targetPosition = {targetX, targetY};
+    robot.drive.moveToPoint(dt, DefenceConfig::RETURN_MAX_SPD, targetPosition, robot.odometry, robot.imu.getRelativeYaw());
 }
 
 void Strategy::goalBallTrack(const float dt) {
@@ -294,10 +280,14 @@ void Strategy::goalBallTrack(const float dt) {
     // Never chase outward through a side limit. Inward ball tracking can aid recovery.
     if (x < left) velocityX = max(velocityX, correctionSpeed(left - x));
     if (x > right) velocityX = min(velocityX, correctionSpeed(right - x));
+    
     // Hold current Y throughout the safe band; correct only when near an edge.
     const float velocityY = correctionSpeed(constrain(y, back, front) - y);
     const float speed = min(hypot(velocityX, velocityY), DefenceConfig::SHUFFLE_MAX_SPD);
-    moveInFieldDirection(dt, speed > 0.0f ? degrees(atan2(velocityX, velocityY)) : 0.0f, speed);
+    robot.drive.moveInFieldDirection(
+        dt, speed > 0.0f ? degrees(atan2(velocityX, velocityY)) : 0.0f, 
+        speed, robot.imu.getRelativeYaw()
+    );
 }
 
 void Strategy::maneuverAroundBall(const float dt, const float targetBallHeading) {
@@ -308,7 +298,8 @@ void Strategy::maneuverAroundBall(const float dt, const float targetBallHeading)
             robot.drive.moveToPoint(
                 dt, AttackConfig::SEARCH_SPD,
                 FieldConstants::friendlyGoalBoxPosition.x,
-                FieldConstants::friendlyGoalBoxPosition.y, robot.odometry);
+                FieldConstants::friendlyGoalBoxPosition.y, 
+                robot.odometry, robot.imu.getRelativeYaw());
             break;
         }
         case TrackingStage::APPROACH: {
@@ -379,10 +370,10 @@ void Strategy::transitionToTrackingStage(const TrackingStage nextStage) {
             break;
         }
         case TrackingStage::RETURN: {
-            const Position2D robotPosition = robot.odometry.getPosition();
             alignedTime = 0;
             orbitDebounceTime = 0;
             transitionTime = 0;
+            const Position2D robotPosition = robot.odometry.getPosition();
             returnTargetPosition =
                 robotPosition.distanceTo(FieldConstants::centreLeftMark) <=
                         robotPosition.distanceTo(FieldConstants::centreRightMark)
@@ -614,9 +605,7 @@ float Strategy::ballOutsideBoundaryConfidence() {
     float confidence = 0.0f;
     for (size_t side = 0; side < 4; ++side) {
         const float proximity = constrain(
-            1.0f - distancesToBoundary[side] /
-                AttackConfig::PROXIMITY_RANGE_MM,
-            0.0f, 1.0f);
+            1.0f - distancesToBoundary[side] / AttackConfig::PROXIMITY_RANGE_MM, 0.0f, 1.0f);
         const float alignment = constrain(outwardAlignments[side], 0.0f, 1.0f);
         confidence = max(confidence, proximity * alignment);
     }
