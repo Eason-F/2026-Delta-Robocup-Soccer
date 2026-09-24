@@ -55,9 +55,6 @@ class Robot {
         
         // Heading controller and ball-dependent heading offset.
         static constexpr uint8_t TURN_SPD = 80;
-        static constexpr uint8_t HEADING_TOLERANCE = 15;
-        static constexpr uint8_t BALL_TILT_RANGE = 70;
-        static constexpr uint8_t BALL_TILT_MAX = 20;
         PIDController headingPID = PIDController(0.01, 0.0, 0.001, -1.0, 1.0);
         
         // Boundary escape timing and last safe direction.
