@@ -235,7 +235,7 @@ void Strategy::returnToHome(const float dt) {
         FieldConstants::friendlyGoalBoxBottomLeft.y + DefenceConfig::BOX_INSET_MM,
         FieldConstants::friendlyGoalBoxTopRight.y - DefenceConfig::BOX_INSET_MM);
     const Position2D targetPosition = {targetX, targetY};
-    robot.drive.moveToPoint(dt, DefenceConfig::RETURN_MAX_SPD, targetPosition, robot.odometry, robot.imu.getRelativeYaw());
+    robot.drive.moveToPoint(dt, DefenceConfig::RETURN_SPD, targetPosition, robot.odometry, robot.imu.getRelativeYaw());
 }
 
 void Strategy::goalBallTrack(const float dt) {
@@ -280,7 +280,7 @@ void Strategy::goalBallTrack(const float dt) {
     // Never chase outward through a side limit. Inward ball tracking can aid recovery.
     if (x < left) velocityX = max(velocityX, correctionSpeed(left - x));
     if (x > right) velocityX = min(velocityX, correctionSpeed(right - x));
-    
+
     // Hold current Y throughout the safe band; correct only when near an edge.
     const float velocityY = correctionSpeed(constrain(y, back, front) - y);
     const float speed = min(hypot(velocityX, velocityY), DefenceConfig::SHUFFLE_MAX_SPD);
