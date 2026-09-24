@@ -35,7 +35,6 @@ class Strategy {
         void update();
         void configureGame(bool running, bool hasStartingPosition, bool forceBothAttack);
         Role getRole() const;
-        uint8_t calculateAttackScore(); // returns 0-255; higher means more suitable to attack
         uint8_t getCommunicationFlags() const;
         void attack(const float dt);
         void defend(const float dt);
@@ -66,30 +65,6 @@ class Strategy {
         Role role = Role::ATTACK;
         TrackingStage trackingStage = TrackingStage::SEARCH;
         DefenceStage defenceStage = DefenceStage::PASSIVE;
-
-        struct ScoreConfigs { // DEPRECATED
-            // Each component has a bounded influence so millimetres, degrees,
-            // and raw IR strength cannot accidentally dominate one another.
-            static constexpr float BALL_STRENGTH_FULL_SCALE = 180.0f;
-            static constexpr float BALL_STRENGTH_WEIGHT = 100.0f;
-            static constexpr float BALL_ALIGNMENT_WEIGHT = 50.0f;
-
-            static constexpr float DEFENCE_NOT_READY_PENALTY = 30.0f;
-            static constexpr float DEFENCE_POSITION_PENALTY_MAX = 40.0f;
-            static constexpr float DEFENCE_POSITION_FULL_SCALE = 900.0f;
-            static constexpr float DEFENCE_IN_RANGE_BONUS = 40.0f;
-
-            static constexpr float RETAIN_ATTACK_BIAS = 15.0f;
-            static constexpr float ATTACK_OFFSIDE_PENALTY = 40.0f;
-            static constexpr float ATTACK_SIGNAL_BONUS_MAX = 25.0f;
-            static constexpr float ATTACK_SIGNAL_BONUS_START = 130.0f;
-
-            static constexpr float OUT_OF_RESPONSE_ANGLE = 140.0f;
-            static constexpr float OUT_OF_RESPONSE_STRENGTH = 40.0f;
-
-            static constexpr uint16_t IR_READING_TIMEOUT_MS = 250;
-            static constexpr uint16_t COMMUNICATION_TIMEOUT_MS = 500;
-        };
 
         // Keep the 14-byte packet: five status bits and a three-bit handoff epoch.
         static constexpr uint8_t ROLE_READY_FLAG = 0x01;

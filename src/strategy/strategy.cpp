@@ -20,8 +20,7 @@ void Strategy::configureGame(bool running, bool hasStartingPosition, bool forceB
 
 bool Strategy::hasFreshCommunication() const {
     return robot.robotCommunication.hasReceivedPacket() &&
-        millis() - robot.robotCommunication.getLastUpdateMillis() <=
-            ScoreConfigs::COMMUNICATION_TIMEOUT_MS;
+        millis() - robot.robotCommunication.getLastUpdateMillis() <= 500;
 }
 
 void Strategy::update() {
@@ -530,59 +529,6 @@ void Strategy::returnToNeutralPoint(const float dt) {
     orbitAroundPoint(dt, 0, angle, distance);
 }
 
-uint8_t Strategy::calculateAttackScore() {
-    // DEPRECATED. Retained for telemetry.
-    if (!hasFreshBallReading()) return 0;
-
-    const float signalStrength = robot.irSensor.getSignalStrength();
-    const float absoluteBearing = abs(util::wrapAngle180(
-        robot.irSensor.getDirectionDegrees()));
-    const float strengthFactor = constrain(
-        signalStrength / ScoreConfigs::BALL_STRENGTH_FULL_SCALE, 0.0f, 1.0f);
-    const float alignmentFactor = constrain(
-        1.0f - absoluteBearing / 180.0f, 0.0f, 1.0f);
-
-    float score = strengthFactor * ScoreConfigs::BALL_STRENGTH_WEIGHT;
-    score += alignmentFactor * ScoreConfigs::BALL_ALIGNMENT_WEIGHT;
-
-    switch (role) {
-        case Role::DEFENCE:
-            if (!isInGoalBox()) {
-                score -= ScoreConfigs::DEFENCE_NOT_READY_PENALTY;
-            }
-            score -= constrain(
-                Position2D(robot.odometry.getX(), robot.odometry.getY()).distanceTo(
-                    FieldConstants::friendlyGoalBoxPosition) /
-                    ScoreConfigs::DEFENCE_POSITION_FULL_SCALE,
-                0.0f, 1.0f) * ScoreConfigs::DEFENCE_POSITION_PENALTY_MAX;
-
-            if (absoluteBearing <= ScoreConfigs::OUT_OF_RESPONSE_ANGLE &&
-                signalStrength >= ScoreConfigs::OUT_OF_RESPONSE_STRENGTH) {
-                const float responseFactor = constrain(
-                    (signalStrength - ScoreConfigs::OUT_OF_RESPONSE_STRENGTH) /
-                    (ScoreConfigs::BALL_STRENGTH_FULL_SCALE -
-                     ScoreConfigs::OUT_OF_RESPONSE_STRENGTH),
-                    0.0f, 1.0f);
-                score += responseFactor * ScoreConfigs::DEFENCE_IN_RANGE_BONUS;
-            }
-            break;
-        case Role::ATTACK:
-            score += ScoreConfigs::RETAIN_ATTACK_BIAS;
-            if (isPastOpponentGoalBox() &&
-                absoluteBearing > ScoreConfigs::OUT_OF_RESPONSE_ANGLE &&
-                signalStrength < ScoreConfigs::OUT_OF_RESPONSE_STRENGTH) {
-                score -= ScoreConfigs::ATTACK_OFFSIDE_PENALTY;
-            }
-            score += constrain(
-                (signalStrength - ScoreConfigs::ATTACK_SIGNAL_BONUS_START) /
-                (ScoreConfigs::BALL_STRENGTH_FULL_SCALE -
-                 ScoreConfigs::ATTACK_SIGNAL_BONUS_START),
-                0.0f, 1.0f) * ScoreConfigs::ATTACK_SIGNAL_BONUS_MAX;
-            break;
-    }
-    return static_cast<uint8_t>(constrain(score, 0.0f, 255.0f));
-}
-
 float Strategy::ballOutsideBoundaryConfidence() {
     if (!hasFreshBallReading()) return 0.0f;
 
@@ -629,6 +575,5 @@ bool Strategy::isPastOpponentGoalBox() {
 
 bool Strategy::hasFreshBallReading() const {
     return robot.irSensor.ballFound() && robot.irSensor.getSignalStrength() > 0.0f &&
-           millis() - robot.irSensor.getLastUpdateMillis() <=
-               ScoreConfigs::IR_READING_TIMEOUT_MS;
+           millis() - robot.irSensor.getLastUpdateMillis() <= 20;
 }
