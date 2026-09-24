@@ -223,7 +223,7 @@ void Strategy::returnToHome(const float dt) {
         FieldConstants::friendlyGoalBoxBottomLeft.y + DefenceConfig::BOX_INSET_MM,
         FieldConstants::friendlyGoalBoxTopRight.y - DefenceConfig::BOX_INSET_MM);
     const Position2D targetPosition = {targetX, targetY};
-    robot.drive.moveToPoint(dt, DefenceConfig::RETURN_MAX_SPD, targetPosition, robot.odometry, robot.imu.getRelativeYaw());
+    robot.drive.moveToPoint(dt, DefenceConfig::RETURN_SPD, targetPosition, robot.odometry, robot.imu.getRelativeYaw());
 }
 
 void Strategy::goalBallTrack(const float dt) {
