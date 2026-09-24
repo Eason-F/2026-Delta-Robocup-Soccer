@@ -194,7 +194,7 @@ class Strategy {
             -DefenceConfig::SHUFFLE_MAX_SPD, DefenceConfig::SHUFFLE_MAX_SPD);
 
         void setRole(Role newRole);
-        void moveInFieldDirection(float dt, float direction, float speed);
+        bool isInsideDefenceInset() const;
         bool hasFreshCommunication() const;
 
         bool isInGoalBox();

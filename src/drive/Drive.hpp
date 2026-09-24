@@ -43,9 +43,10 @@ class Drive {
 
         void updateRPM(const float &dt);
         
-        void moveInDirection(const float &dt, int directionDegrees, int rpm);
-        void moveToPoint(const float &dt, const int &rpm, const Position2D &target, OpticalOdometry &odometry);
-        void moveToPoint(const float &dt, const int &rpm, const float &targetX, const float &targetY, OpticalOdometry &odometry);
+        void moveInDirection(const float &dt, const int directionDegrees, const int rpm);
+        void moveInFieldDirection(const float dt, const float direction, const int rpm, const float heading);
+        void moveToPoint(const float &dt, const int &rpm, const Position2D &target, OpticalOdometry &odometry, const float heading);
+        void moveToPoint(const float &dt, const int &rpm, const float &targetX, const float &targetY, OpticalOdometry &odometry, const float heading);
         void turnInDirection(const float &dt, int rpm);
         void stop();
 
