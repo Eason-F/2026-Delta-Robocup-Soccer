@@ -12,9 +12,9 @@ class PIDController {
         const float min = 0.0f;
 
         // State retained between adjustment calls.
-        float value;
-        float lastError;
-        float integral;
+        float value = 0.0f;
+        float lastError = 0.0f;
+        float integral = 0.0f;
 
     public:
         PIDController(const float &kP, const float &kI, const float &kD, const float &min, const float &max);
