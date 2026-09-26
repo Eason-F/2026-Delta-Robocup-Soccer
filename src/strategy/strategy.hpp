@@ -18,9 +18,8 @@ class Strategy {
 
         // defence state relating to defending role
         enum class DefenceStage : uint8_t {
-            PASSIVE,
-            RETURN, 
-            SHUFFLE,
+            RETURN = 1,
+            SHUFFLE = 2,
         };
 
         enum class Role : uint8_t {
@@ -57,7 +56,9 @@ class Strategy {
         Robot &robot;
         Role role = Role::ATTACK;
         TrackingStage trackingStage = TrackingStage::SEARCH;
-        DefenceStage defenceStage = DefenceStage::PASSIVE;
+        DefenceStage defenceStage = DefenceStage::RETURN;
+        bool shuffleRight = true;
+        elapsedMillis shuffleSwitchTime;
 
         struct ScoreConfigs {
             // Each component has a bounded influence so millimetres, degrees,
@@ -136,27 +137,18 @@ class Strategy {
         PIDController approachPID = PIDController(0.5, 0, 0, 0.0, 1.0);
         PIDController orbitTangentPID = PIDController(0.04, 0, 0.001, -1.0, 1.0);
         PIDController orbitDistancePID = PIDController(0.3, 0, 0.001, -0.2, 1.0);
-
         struct DefenceConfig {
             // Clearance from every goal-box edge used for normal tracking.
-            static constexpr float BOX_INSET_MM = 50.0f;
-            // Proportional return speed in RPM per millimetre outside the inset box.
-            static constexpr float RETURN_GAIN = 3.0f;
+            static constexpr float BOX_INSET_MM = 25.0f;
             // Speed limits while returning from outside the full goal box.
             static constexpr float RETURN_MAX_SPD = 270.0f;
             static constexpr float RETURN_MIN_SPD = 100.0f;
-            // Inset-edge correction in RPM per millimetre outside the safe area.
-            static constexpr float BOX_CORRECTION_GAIN = 1.2f;
-            // Minimum speed used to correct drift beyond an inset edge.
-            static constexpr float BOX_CORRECTION_MIN_SPD = 35.0f;
-            // Lateral tracking speed in RPM per degree outside the deadband.
-            static constexpr float SHUFFLE_GAIN = 3.0f;
-            // Maximum speed for lateral tracking and inset-edge correction.
+            // Lateral tracking and jitter speeds.
             static constexpr float SHUFFLE_MAX_SPD = 180.0f;
+            static constexpr float SHUFFLE_JITTER_SPD = 120.0f;
+            static constexpr uint16_t SHUFFLE_JITTER_MS = 250;
             // Ball-bearing tolerance within which the defender stays centred.
             static constexpr float ALIGNMENT_DEADBAND_DEG = 20.0f;
-            // Distance over which lateral movement slows near a side edge.
-            static constexpr float EDGE_SLOWDOWN_MM = 100.0f;
             // Defender handoff response cone, measured either side of forward.
             static constexpr float RESPONSE_HALF_ANGLE_DEG = 0.0f;
             // Minimum local ball strength required to initiate a handoff.
@@ -167,9 +159,12 @@ class Strategy {
             static constexpr float ATTACKER_FAR_STRENGTH = 20.0f;
         };
 
+        PIDController defenceReturnPID = PIDController(3.0f, 0, 0, 0, DefenceConfig::RETURN_MAX_SPD);
+        PIDController shuffleBearingPID = PIDController(3.0f, 0, 0,
+            -DefenceConfig::SHUFFLE_MAX_SPD, DefenceConfig::SHUFFLE_MAX_SPD);
+
         void setRole(Role newRole);
         void moveInFieldDirection(float dt, float direction, float speed);
-        bool isInsideDefenceInset() const;
         bool hasFreshCommunication() const;
 
         bool isInGoalBox();

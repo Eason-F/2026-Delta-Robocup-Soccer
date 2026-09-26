@@ -140,6 +140,8 @@ void Strategy::setRole(Role newRole) {
                                               : TrackingStage::SEARCH;
     } else {
         defenceStage = DefenceStage::RETURN;
+        shuffleRight = true;
+        shuffleSwitchTime = 0;
     }
 }
 
@@ -186,29 +188,15 @@ void Strategy::defend(const float dt) {
         case DefenceStage::SHUFFLE:
             goalBallTrack(dt);
             break;
-        case DefenceStage::PASSIVE:
-            // Zero translation retains heading correction.
-            robot.drive.moveInDirection(dt, 0, 0);
-            break;
     }
-}
-
-bool Strategy::isInsideDefenceInset() const {
-    const float x = robot.odometry.getX();
-    const float y = robot.odometry.getY();
-    return x >= FieldConstants::friendlyGoalBoxBottomLeft.x + DefenceConfig::BOX_INSET_MM &&
-           x <= FieldConstants::friendlyGoalBoxTopRight.x - DefenceConfig::BOX_INSET_MM &&
-           y >= FieldConstants::friendlyGoalBoxBottomLeft.y + DefenceConfig::BOX_INSET_MM &&
-           y <= FieldConstants::friendlyGoalBoxTopRight.y - DefenceConfig::BOX_INSET_MM;
 }
 
 void Strategy::checkDefenceStage() {
     if (!isInGoalBox()) {
         defenceStage = DefenceStage::RETURN;
     } else {
-        // Near an edge, keep correcting position even if ball data is missing.
-        defenceStage = hasFreshBallReading() || !isInsideDefenceInset()
-            ? DefenceStage::SHUFFLE : DefenceStage::PASSIVE;
+        if (defenceStage != DefenceStage::SHUFFLE) shuffleSwitchTime = 0;
+        defenceStage = DefenceStage::SHUFFLE;
     }
 }
 
@@ -235,20 +223,16 @@ void Strategy::returnToHome(const float dt) {
         robot.drive.moveInDirection(dt, 0, 0);
         return;
     }
-    const float speed = constrain(distance * DefenceConfig::RETURN_GAIN,
-        DefenceConfig::RETURN_MIN_SPD, DefenceConfig::RETURN_MAX_SPD);
+    const float speed = max(defenceReturnPID.adjustmentValue(dt, distance),
+        DefenceConfig::RETURN_MIN_SPD);
     moveInFieldDirection(dt, degrees(atan2(dx, dy)), speed);
 }
 
 void Strategy::goalBallTrack(const float dt) {
-    // Check bounds and freshness on every command, including direct calls.
+    // Check bounds on every command, including direct calls.
     checkDefenceStage();
     if (defenceStage == DefenceStage::RETURN) {
         returnToHome(dt);
-        return;
-    }
-    if (defenceStage == DefenceStage::PASSIVE) {
-        robot.drive.moveInDirection(dt, 0, 0);
         return;
     }
     const float x = robot.odometry.getX();
@@ -259,31 +243,45 @@ void Strategy::goalBallTrack(const float dt) {
     const float front = FieldConstants::friendlyGoalBoxTopRight.y - DefenceConfig::BOX_INSET_MM;
 
     float velocityX = 0.0f;
+    bool trackingBall = false;
     if (hasFreshBallReading()) {
         const float bearing = util::wrapAngle180(
             robot.irSensor.getDirectionDegrees() + robot.imu.getRelativeYaw());
-        if (abs(bearing) > DefenceConfig::ALIGNMENT_DEADBAND_DEG && abs(bearing) <= 90.0f) {
-            const bool moveRight = bearing > 0.0f;
-            const float remaining = moveRight ? right - x : x - left;
-            const float edgeFactor = constrain(remaining / DefenceConfig::EDGE_SLOWDOWN_MM, 0.0f, 1.0f);
-            const float speed = min(
-                (abs(bearing) - DefenceConfig::ALIGNMENT_DEADBAND_DEG) * DefenceConfig::SHUFFLE_GAIN,
-                DefenceConfig::SHUFFLE_MAX_SPD) * edgeFactor;
-            velocityX = moveRight ? speed : -speed;
+        if (abs(bearing) <= 90.0f &&
+            abs(bearing) > DefenceConfig::ALIGNMENT_DEADBAND_DEG) {
+            velocityX = shuffleBearingPID.adjustmentValue(dt, bearing);
+            trackingBall = true;
         }
     }
 
-    const auto correctionSpeed = [](float error) {
-        if (error == 0.0f) return 0.0f;
-        const float speed = constrain(abs(error) * DefenceConfig::BOX_CORRECTION_GAIN,
-            DefenceConfig::BOX_CORRECTION_MIN_SPD, DefenceConfig::SHUFFLE_MAX_SPD);
-        return error > 0.0f ? speed : -speed;
-    };
-    // Never chase outward through a side limit. Inward ball tracking can aid recovery.
-    if (x < left) velocityX = max(velocityX, correctionSpeed(left - x));
-    if (x > right) velocityX = min(velocityX, correctionSpeed(right - x));
-    // Hold current Y throughout the safe band; correct only when near an edge.
-    const float velocityY = correctionSpeed(constrain(y, back, front) - y);
+    if (trackingBall) {
+        // Begin a fresh jitter cycle once the ball is aligned.
+        shuffleSwitchTime = 0;
+    } else {
+        if (shuffleSwitchTime >= DefenceConfig::SHUFFLE_JITTER_MS) {
+            shuffleRight = !shuffleRight;
+            shuffleSwitchTime = 0;
+        }
+        velocityX = shuffleRight ? DefenceConfig::SHUFFLE_JITTER_SPD
+                                 : -DefenceConfig::SHUFFLE_JITTER_SPD;
+    }
+
+    // At an inset edge, turn inward regardless of the ball bearing.
+    if (x <= left) {
+        shuffleRight = true;
+        shuffleSwitchTime = 0;
+        velocityX = DefenceConfig::SHUFFLE_JITTER_SPD;
+    }
+    if (x >= right) {
+        shuffleRight = false;
+        shuffleSwitchTime = 0;
+        velocityX = -DefenceConfig::SHUFFLE_JITTER_SPD;
+    }
+    velocityX = constrain(velocityX, -DefenceConfig::SHUFFLE_MAX_SPD,
+        DefenceConfig::SHUFFLE_MAX_SPD);
+    float velocityY = 0.0f;
+    if (y < back) velocityY = DefenceConfig::SHUFFLE_JITTER_SPD;
+    if (y > front) velocityY = -DefenceConfig::SHUFFLE_JITTER_SPD;
     const float speed = min(hypot(velocityX, velocityY), DefenceConfig::SHUFFLE_MAX_SPD);
     moveInFieldDirection(dt, speed > 0.0f ? degrees(atan2(velocityX, velocityY)) : 0.0f, speed);
 }
