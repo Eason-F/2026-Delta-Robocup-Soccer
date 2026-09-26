@@ -103,26 +103,26 @@ class Strategy {
         struct AttackConfig {
             // Search and approach tuning (motor targets are in RPM).
             static constexpr uint16_t SEARCH_SPD = 270;
-            static constexpr uint16_t APPROACH_SPD = 130;
+            static constexpr uint16_t APPROACH_SPD = 100;
             static constexpr uint16_t TRANSITION_MIN_MS = 300;
             static constexpr uint16_t TRANSITION_TIMEOUT = 700;
 
             // Orbit controller tuning and transition hysteresis.
-            static constexpr uint16_t ORBIT_APPROACH_SPD = 130;
-            static constexpr uint16_t ORBIT_SPD = 120;
-            static constexpr uint16_t ORBIT_DISTANCE = 50;
-            static constexpr uint16_t ORBIT_ENTRY_TOLERANCE = 20;
-            static constexpr uint16_t ORBIT_EXIT_TOLERANCE = 30;
+            static constexpr uint16_t ORBIT_APPROACH_SPD = 180;
+            static constexpr uint16_t ORBIT_SPD = 150;
+            static constexpr uint16_t ORBIT_DISTANCE = 70;
+            static constexpr uint16_t ORBIT_ENTRY_TOLERANCE = 10;
+            static constexpr uint16_t ORBIT_EXIT_TOLERANCE = 15;
             static constexpr uint16_t ORBIT_DEBOUNCE_MS = 100;
 
             // Once aligned, charge through the final gap to secure the ball.
-            static constexpr uint16_t TRANSITION_SPD = 220;
+            static constexpr uint16_t TRANSITION_SPD = 180;
             static constexpr uint16_t CAPTURED_DISTANCE = 130;
             static constexpr uint16_t CAPTURED_EXIT_DISTANCE = 110;
 
             // Captured-ball alignment and forward-speed ramp.
-            static constexpr uint16_t CAPTURED_MAX_SPD = 270;
-            static constexpr uint16_t CAPTURED_MIN_SPD = 200;
+            static constexpr uint16_t CAPTURED_MAX_SPD = 190;
+            static constexpr uint16_t CAPTURED_MIN_SPD = 250;
             static constexpr uint16_t ENTER_ALIGNMENT_TOLERANCE = 15;
             static constexpr uint16_t EXIT_ALIGNMENT_TOLERANCE = 30;
             static constexpr uint16_t HEADING_DEADBAND = 7;
@@ -135,8 +135,9 @@ class Strategy {
         elapsedMillis alignedTime;
         
         PIDController approachPID = PIDController(0.5, 0, 0, 0.0, 1.0);
-        PIDController orbitTangentPID = PIDController(0.04, 0, 0.001, -1.0, 1.0);
-        PIDController orbitDistancePID = PIDController(0.3, 0, 0.001, -0.2, 1.0);
+        PIDController orbitTangentPID = PIDController(0.05, 0, 0.001, -1.0, 1.0);
+        PIDController orbitDistancePID = PIDController(0.3, 0, 0.001, 0.0, 1.0);
+
         struct DefenceConfig {
             // Clearance from every goal-box edge used for normal tracking.
             static constexpr float BOX_INSET_MM = 25.0f;
