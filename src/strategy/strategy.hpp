@@ -152,19 +152,19 @@ class Strategy {
             // Lateral tracking speed in RPM per degree outside the deadband.
             static constexpr float SHUFFLE_GAIN = 3.0f;
             // Maximum speed for lateral tracking and inset-edge correction.
-            static constexpr float SHUFFLE_MAX_SPD = 100.0f;
+            static constexpr float SHUFFLE_MAX_SPD = 180.0f;
             // Ball-bearing tolerance within which the defender stays centred.
             static constexpr float ALIGNMENT_DEADBAND_DEG = 20.0f;
             // Distance over which lateral movement slows near a side edge.
             static constexpr float EDGE_SLOWDOWN_MM = 100.0f;
             // Defender handoff response cone, measured either side of forward.
-            static constexpr float RESPONSE_HALF_ANGLE_DEG = 60.0f;
+            static constexpr float RESPONSE_HALF_ANGLE_DEG = 0.0f;
             // Minimum local ball strength required to initiate a handoff.
-            static constexpr float RESPONSE_MIN_STRENGTH = 30.0f;
+            static constexpr float RESPONSE_MIN_STRENGTH = 50.0f;
             // Robot-relative bearing beyond which the attacker has overshot the ball.
             static constexpr float ATTACKER_BEHIND_ANGLE_DEG = 130.0f;
             // Maximum attacker ball strength treated as a distant overshoot.
-            static constexpr float ATTACKER_FAR_STRENGTH = 45.0f;
+            static constexpr float ATTACKER_FAR_STRENGTH = 20.0f;
         };
 
         void setRole(Role newRole);
