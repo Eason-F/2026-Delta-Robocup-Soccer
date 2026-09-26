@@ -35,5 +35,6 @@ class OpticalOdometry {
         static sfe_otos_pose2d_t SENSOR_OFFSET;
 
         static constexpr float BOUNDARY_CORRECTION_OFFSET = 100.0f;
+        static constexpr float BOUNDARY_CORRECTION_TOLERANCE_MAX = 100.0f;
         static constexpr float BOUNDARY_AXIS_ALIGNMENT_MIN = 0.85f;
 };
