@@ -139,20 +139,20 @@ void Robot::logTelemetry() {
         // log.log("colour", colourSensor.sensorState());
 
         // Position
-        log.log("heading", imu.getRelativeYaw());
-        log.log("odometryX", odometry.getX());
-        log.log("odometryY", odometry.getY());
-        log.log("odometryH", odometry.getHeading());
+        // log.log("heading", imu.getRelativeYaw());
+        // log.log("odometryX", odometry.getX());
+        // log.log("odometryY", odometry.getY());
+        // log.log("odometryH", odometry.getHeading());
 
         // Movement
-        log.log("role", strategy.getRole() == Strategy::Role::ATTACK ? "ATTACK" : "DEFENCE");
-        log.log("stage", strategy.getRole() == Strategy::Role::ATTACK
-            ? static_cast<uint8_t>(strategy.getTrackingStage())
-            : static_cast<uint8_t>(strategy.getDefenceStage()));
-        log.log("driveRPM", drive.lastTranslationRpm);
-        log.log("moveDeg", drive.lastDirection);
-        log.log("m1RPM", drive.motor1.angularVelocityRPM);
-        log.log("edgeEscape", boundaryEscaping);
+        // log.log("role", strategy.getRole() == Strategy::Role::ATTACK ? "ATTACK" : "DEFENCE");
+        // log.log("stage", strategy.getRole() == Strategy::Role::ATTACK
+        //     ? static_cast<uint8_t>(strategy.getTrackingStage())
+        //     : static_cast<uint8_t>(strategy.getDefenceStage()));
+        // log.log("driveRPM", drive.lastTranslationRpm);
+        // log.log("moveDeg", drive.lastDirection);
+        // log.log("m1RPM", drive.motor1.angularVelocityRPM);
+        // log.log("edgeEscape", boundaryEscaping);
 
         // Teammate
         // log.log("bltX", robotCommunication.getReceivedPacket().x);

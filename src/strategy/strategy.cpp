@@ -305,7 +305,7 @@ void Strategy::maneuverAroundBall(const float dt, const float targetBallHeading)
             break;
         }
         case TrackingStage::ORBIT: {
-            robot.handleTargetHeading();
+            // robot.handleTargetHeading();
             float headingError = util::wrapAngle180(
                     robot.irSensor.getDirectionDegrees() - 
                     targetBallHeading - 
@@ -315,9 +315,6 @@ void Strategy::maneuverAroundBall(const float dt, const float targetBallHeading)
 
             float approach = orbitDistancePID.adjustmentValue(dt, distanceError);
             float tangent = -orbitTangentPID.adjustmentValue(dt, headingError);
-
-            float orbitFactor = 1.0f - min(max(0.0, distanceError) / AttackConfig::ORBIT_DISTANCE, 1.0f);
-            tangent *= orbitFactor;
 
             float approachSpeed = approach * AttackConfig::ORBIT_APPROACH_SPD;
             float tangentSpeed = tangent * AttackConfig::ORBIT_SPD;
