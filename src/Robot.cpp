@@ -160,7 +160,6 @@ void Robot::logTelemetry() {
         // log.log("bltH", robotCommunication.getReceivedPacket().heading);
         // log.log("bltDir", robotCommunication.getReceivedPacket().ballBearing);
         // log.log("bltStr", robotCommunication.getReceivedPacket().ballStrength);
-        // log.log("bltScore", robotCommunication.getReceivedPacket().attackScore);
         // log.log("bltState", robotCommunication.getReceivedPacket().state);
         // log.log("bltRole", robotCommunication.getReceivedPacket().role);
         // log.log("bltFlags", robotCommunication.getReceivedPacket().flags);
@@ -208,13 +207,6 @@ void Robot::handleHeadingCorrection(const float dt, const float targetHeading) {
     // Logger::queue("headingAdj", adjustmentRate);
 }
 
-void Robot::handleTargetHeading() {
-    targetHeading = 0;
-    if (abs(irSensor.getDirectionDegrees()) <= BALL_TILT_RANGE) {
-        targetHeading = constrain(-irSensor.getDirectionDegrees(), -BALL_TILT_MAX, BALL_TILT_MAX);
-    }
-}
-
 void Robot::sendBluetoothUpdate() {
     const uint8_t flags = strategy.getCommunicationFlags();
     // Normal telemetry at 50 Hz; role handoffs bypass the rate limit.
@@ -228,7 +220,7 @@ void Robot::sendBluetoothUpdate() {
         static_cast<int16_t>(imu.getRelativeYaw()),
         static_cast<int16_t>(irSensor.getDirectionDegrees()),
         static_cast<uint8_t>(constrain(irSensor.getSignalStrength(), 0.0f, 255.0f)),
-        static_cast<uint8_t>(strategy.calculateAttackScore()), // attack score
+        static_cast<uint8_t>(0), // attack score
         static_cast<uint8_t>(stage), // stage, depends on attack/defend
         static_cast<uint8_t>(strategy.getRole()), // role (attack/defend)
         flags,

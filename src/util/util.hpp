@@ -30,6 +30,11 @@ struct Position2D {
         return hypot(abs(x - other.x), abs(y - other.y));
     }
 
+    // Bearing in degrees using the field convention: 0 is +Y and 90 is +X.
+    float angleTo(const Position2D other) const {
+        return degrees(atan2(other.x - x, other.y - y));
+    }
+
     Position2D operator+(const Vector &vector) const {
         return {x + vector.x, y + vector.y};
     }
