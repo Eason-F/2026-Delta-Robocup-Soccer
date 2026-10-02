@@ -71,6 +71,9 @@ class Robot {
         bool wasRunning = false;
         bool boundaryEscaping = false;
 
+        void displayState();
+        static constexpr uint8_t LED_PIN = 32;
+        
         void updateSensors();
         bool updateRunState();
         void stopForIdle();

@@ -152,8 +152,8 @@ class Strategy {
 
             // Ball-bearing tolerance within which the defender stays centred.
             static constexpr float ALIGNMENT_DEADBAND_DEG = 20.0f;
-            static constexpr float RESPONSE_HALF_ANGLE_DEG = 0.0f; // Defender handoff response cone, measured either side of forward.
-            static constexpr float RESPONSE_MIN_STRENGTH = 50.0f; // Minimum local ball strength required to initiate a handoff. 
+            static constexpr float RESPONSE_HALF_ANGLE_DEG = 80.0f; // Defender handoff response cone, measured either side of forward.
+            static constexpr float RESPONSE_MIN_STRENGTH = 30.0f; // Minimum local ball strength required to initiate a handoff. 
 
             // Robot-relative bearing beyond which the attacker has overshot the ball.
             static constexpr float ATTACKER_BEHIND_ANGLE_DEG = 130.0f;
