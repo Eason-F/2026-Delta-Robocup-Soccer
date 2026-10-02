@@ -72,12 +72,12 @@ void OpticalOdometry::boundaryAlignOdometry(const Vector &boundaryVector, const 
         FieldConstants::fieldWidth / 2 - 
         FieldConstants::boundaryInset - 
         FieldConstants::boundaryLineWidth - 
-        FieldConstants::boundarySensorOffset;
+        BOUNDARY_CORRECTION_OFFSET;
     float boundaryY = 
         FieldConstants::fieldLength / 2 - 
         FieldConstants::boundaryInset - 
         FieldConstants::boundaryLineWidth -
-        FieldConstants::boundarySensorOffset;
+        BOUNDARY_CORRECTION_OFFSET;
 
     Position2D corrected = getPosition();
     if (abs(normalX) > abs(normalY)) {

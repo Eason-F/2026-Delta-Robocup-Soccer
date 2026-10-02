@@ -64,7 +64,7 @@ void Robot::displayState() {
 }
 
 void Robot::updateSensors() {
-    colourSensor.update(static_cast<long>(elapsedLastUpdateTime * 0.001f));
+    colourSensor.update(elapsedLastUpdateTime);
     uartTransport.update();
     imu.update();
     odometry.update();
@@ -124,7 +124,7 @@ void Robot::updateMovement(bool running) {
         static_cast<float>(elapsedLastUpdateTime) / 1000000.0f,
         0.000001f);
     handleHeadingCorrection(updateDt, targetHeading);
-    boundaryEscaping = handleEdgeDetection(updateDt);
+    // boundaryEscaping = handleEdgeDetection(updateDt);
 
     const bool strategyUpdateDue = elapsedLastLoopTime >= LOOP_TIME_MS;
     if (boundaryEscaping || !strategyUpdateDue) {
@@ -187,29 +187,22 @@ void Robot::enforceDefinedRoleBehaviour(const float dt) {
 }
 
 bool Robot::handleEdgeDetection(const float dt) {
-    // Only treat white as a field edge when odometry places the robot near one.
-    const float expectedBoundaryX = FieldConstants::boundaryBottomRight.x - FieldConstants::boundarySensorOffset;
-    const float expectedBoundaryY = FieldConstants::boundaryTopRight.y - FieldConstants::boundarySensorOffset;
-    const bool nearBoundary =
-        abs(abs(odometry.getX()) - expectedBoundaryX) <= BOUNDARY_ODOMETRY_TOLERANCE ||
-        abs(abs(odometry.getY()) - expectedBoundaryY) <= BOUNDARY_ODOMETRY_TOLERANCE;
-    const bool edgeDetected = colourSensor.detectedEdge();
-    if (nearBoundary && edgeDetected && !edgePreviouslyDetected && !escapeActive) {
+    // Refresh the escape direction whenever any boundary sensor sees white.
+    if (colourSensor.detectedEdge()) {
         const Vector edgeVector = colourSensor.getVector();
 
         if (edgeVector.magnitude > 0.1f) {
             escapeDirection = degrees(edgeVector.angle) + 180.0f;
         }
         elapsedEscapeTime = 0;
-        escapeActive = true;
         odometry.boundaryAlignOdometry(edgeVector, imu.getRelativeYaw());
     }
-    edgePreviouslyDetected = edgeDetected;
 
-    if (!escapeActive) return false;
-    if (elapsedEscapeTime >= ESCAPE_DURATION) {
+    if ((elapsedEscapeTime - ESCAPE_DURATION) <= ESCAPE_BUFFER &&
+        (elapsedEscapeTime - ESCAPE_DURATION) >= 0) {
         drive.stop();
-        escapeActive = false;
+    }
+    if (elapsedEscapeTime >= ESCAPE_DURATION) {
         return false;
     }
     
