@@ -55,15 +55,12 @@ class Robot {
         
         // Heading controller and ball-dependent heading offset.
         static constexpr uint8_t TURN_SPD = 80;
-        static constexpr uint8_t HEADING_TOLERANCE = 15;
-        static constexpr uint8_t BALL_TILT_RANGE = 70;
-        static constexpr uint8_t BALL_TILT_MAX = 20;
         PIDController headingPID = PIDController(0.01, 0.0, 0.001, -1.0, 1.0);
         
         // Boundary escape timing and last safe direction.
-        static constexpr uint8_t BOUNDARY_ESCAPE_SPD = 80;
-        static constexpr uint16_t ESCAPE_DURATION = 7;
-        static constexpr uint16_t ESCAPE_BUFFER = 10;
+        static constexpr uint8_t BOUNDARY_ESCAPE_SPD = 130;
+        static constexpr uint16_t ESCAPE_DURATION = 100;
+        static constexpr uint16_t ESCAPE_BUFFER = 120;
         elapsedMillis elapsedEscapeTime = ESCAPE_DURATION;
         float escapeDirection = 0.0f;
 
@@ -85,7 +82,6 @@ class Robot {
 
         bool handleEdgeDetection(const float dt);
         void handleHeadingCorrection(const float dt, const float targetHeading);
-        void handleTargetHeading();
 
         void sendBluetoothUpdate();
 

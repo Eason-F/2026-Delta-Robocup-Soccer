@@ -18,7 +18,7 @@ void Drive::setup() {
     motor4.setup();
 }
 
-void Drive::moveInDirection(const float &dt, int directionDegrees, int rpm) {
+void Drive::moveInDirection(const float &dt, const int directionDegrees, const int rpm) {
     // Project translation onto wheels mounted at 45-degree intervals.
     lastDirection = directionDegrees;
     lastTranslationRpm = rpm;
@@ -28,24 +28,29 @@ void Drive::moveInDirection(const float &dt, int directionDegrees, int rpm) {
     motor4.setMotorRPM(cos(radians(directionDegrees + 135)) * rpm + rotationRpm, dt);
 }
 
-void Drive::moveToPoint(const float &dt, const int &rpm, const float &targetX, const float &targetY, OpticalOdometry &odometry) {
+void Drive::moveInFieldDirection(const float dt, const float direction, const int rpm, const float heading) {
+    // Move in field relative direction irrespective of heading
+    moveInDirection(dt, util::wrapAngle180(direction - heading), rpm);
+}
+
+void Drive::moveToPoint(const float &dt, const int &rpm, const float &targetX, const float &targetY, OpticalOdometry &odometry, const float heading) {
     float velocityX = positionPIDX.adjustmentValue(dt, targetX, odometry.getX()) * rpm;
     float velocityY = positionPIDY.adjustmentValue(dt, targetY, odometry.getY()) * rpm;
     float direction = degrees(atan2(velocityX, velocityY));
     float speed = min(hypot(velocityY, velocityX), rpm);
-    Logger::queue("vx", velocityX);
-    Logger::queue("vy", velocityY);
-    Logger::queue("dir", direction);
+    // Logger::queue("vx", velocityX);
+    // Logger::queue("vy", velocityY);
+    // Logger::queue("dir", direction);
     // Logger::queue("spd", speed);
 
     if (hypot(targetX - odometry.getX(), targetY - odometry.getY()) < 15.0f) {
         stop(); return;
     }
-    moveInDirection(dt, direction, max(speed, 40));
+    moveInFieldDirection(dt, direction, max(speed, 40), heading);
 }
 
-void Drive::moveToPoint(const float &dt, const int &rpm, const Position2D &target, OpticalOdometry &odometry) {
-    moveToPoint(dt, rpm, target.x, target.y, odometry);
+void Drive::moveToPoint(const float &dt, const int &rpm, const Position2D &target, OpticalOdometry &odometry, const float heading) {
+    moveToPoint(dt, rpm, target.x, target.y, odometry, heading);
 }
 
 void Drive::turnInDirection(const float &dt, int rpm) {
