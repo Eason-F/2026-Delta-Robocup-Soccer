@@ -15,7 +15,6 @@ class Strategy {
             ORBIT,
             TRANSITION,
             CAPTURED,
-            RETURN // return to neutral point
         };
 
         // defence state relating to defending role
@@ -47,7 +46,6 @@ class Strategy {
                               const float currentHeading,
                               const float currentDistance);
         void returnToNeutralPoint(const float dt);
-        float ballOutsideBoundaryConfidence();
         float calculateAngleToGoal() const;
         void pushCapturedBallToGoal(const float dt);
 
@@ -103,7 +101,7 @@ class Strategy {
             // Orbit controller tuning and transition hysteresis.
             static constexpr uint16_t ORBIT_APPROACH_SPD = 180;
             static constexpr uint16_t ORBIT_SPD = 150;
-            static constexpr uint16_t ORBIT_DISTANCE = 70;
+            static constexpr uint16_t ORBIT_DISTANCE = 40;
             static constexpr uint16_t ORBIT_ENTRY_TOLERANCE = 10;
             static constexpr uint16_t ORBIT_EXIT_TOLERANCE = 15;
             static constexpr uint16_t ORBIT_DEBOUNCE_MS = 100;
@@ -116,7 +114,7 @@ class Strategy {
             // Captured-ball alignment and forward-speed ramp.
             static constexpr uint16_t CAPTURED_MAX_SPD = 250;
             static constexpr uint16_t CAPTURED_MIN_SPD = 190;
-            static constexpr uint16_t ENTER_ALIGNMENT_TOLERANCE = 15;
+            static constexpr uint16_t ENTER_ALIGNMENT_TOLERANCE = 10;
             static constexpr uint16_t EXIT_ALIGNMENT_TOLERANCE = 30;
             static constexpr uint16_t HEADING_DEADBAND = 7;
             static constexpr float GOAL_ALIGNMENT_FULL_SPEED_DEG = 60.0f;
@@ -124,9 +122,6 @@ class Strategy {
             static constexpr uint16_t SPEED_RAMP_MAX_MS = 1000;
             static constexpr uint16_t ALIGNED_DEBOUNCE_MS = 0;
 
-            // Ball outside field inferences
-            static constexpr float PROXIMITY_RANGE_MM = 300.0f;
-            static constexpr float OUTSIDE_BOUNDARY_CONFIDENCE_THRESHOLD = 0.9f;
         };
 
         elapsedMillis transitionTime;

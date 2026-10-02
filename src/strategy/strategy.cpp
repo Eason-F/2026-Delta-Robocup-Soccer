@@ -172,7 +172,7 @@ void Strategy::attack(const float dt) {
         robot.drive.stop();
         return;
     }
-    maneuverAroundBall(dt, calculateAngleToGoal());
+    maneuverAroundBall(dt, 0);
 }
 
 void Strategy::defend(const float dt) {
@@ -311,9 +311,6 @@ void Strategy::maneuverAroundBall(const float dt, const float targetBallHeading)
             robot.drive.moveInDirection(dt, direction, AttackConfig::TRANSITION_SPD);
             break;
         }
-        case TrackingStage::RETURN:
-            returnToNeutralPoint(dt);
-            break;
         default: {
             robot.drive.stop();
             break;
@@ -366,19 +363,6 @@ void Strategy::transitionToTrackingStage(const TrackingStage nextStage) {
             capturedGoalTargetLocked = true;
             break;
         }
-        case TrackingStage::RETURN: {
-            alignedTime = 0;
-            orbitDebounceTime = 0;
-            transitionTime = 0;
-            const Position2D robotPosition = robot.odometry.getPosition();
-            returnTargetPosition =
-                robotPosition.distanceTo(FieldConstants::centreLeftMark) <=
-                        robotPosition.distanceTo(FieldConstants::centreRightMark)
-                    ? FieldConstants::centreLeftMark
-                    : FieldConstants::centreRightMark;
-            returnTargetPosition = returnTargetPosition + Vector(Vector::Position {}, 0, -110.0f);
-            break;
-        }
     }
 }
 
@@ -386,13 +370,6 @@ void Strategy::checkTrackingStage(const float, const float targetBallHeading) {
     // Apply distance/alignment hysteresis so noisy readings do not chatter.
     if (!hasFreshBallReading()) {
         transitionToTrackingStage(TrackingStage::SEARCH);
-        return;
-    }
-
-    if (trackingStage != TrackingStage::RETURN &&
-        ballOutsideBoundaryConfidence() >
-            AttackConfig::OUTSIDE_BOUNDARY_CONFIDENCE_THRESHOLD) {
-        transitionToTrackingStage(TrackingStage::RETURN);
         return;
     }
 
@@ -446,9 +423,6 @@ void Strategy::checkTrackingStage(const float, const float targetBallHeading) {
             } else if (signalStrength < AttackConfig::CAPTURED_EXIT_DISTANCE) {
                 transitionToTrackingStage(TrackingStage::TRANSITION);
             }
-            return;
-
-        case TrackingStage::RETURN:
             return;
     }
 }
@@ -524,31 +498,6 @@ void Strategy::pushCapturedBallToGoal(const float dt) {
 void Strategy::returnToNeutralPoint(const float dt) {
     robot.drive.moveToPoint(dt, AttackConfig::SEARCH_SPD, returnTargetPosition,
         robot.odometry, robot.imu.getRelativeYaw());
-}
-
-float Strategy::ballOutsideBoundaryConfidence() {
-    if (!hasFreshBallReading()) return 0.0f;
-
-    const Position2D robotPosition = robot.odometry.getPosition();
-    const float fieldBearing = radians(util::wrapAngle180(
-        robot.irSensor.getDirectionDegrees() + robot.imu.getRelativeYaw()));
-    const float directionX = sin(fieldBearing);
-    const float distancesToBoundary[] = {
-        robotPosition.x - FieldConstants::boundaryBottomLeft.x,
-        FieldConstants::boundaryBottomRight.x - robotPosition.x,
-    };
-    const float outwardAlignments[] = {
-        -directionX, directionX,
-    };
-
-    float confidence = 0.0f;
-    for (size_t side = 0; side < 2; ++side) {
-        const float proximity = constrain(
-            1.0f - distancesToBoundary[side] / AttackConfig::PROXIMITY_RANGE_MM, 0.0f, 1.0f);
-        const float alignment = constrain(outwardAlignments[side], 0.0f, 1.0f);
-        confidence = max(confidence, proximity * alignment);
-    }
-    return confidence;
 }
 
 bool Strategy::isInGoalBox() {

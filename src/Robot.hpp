@@ -58,9 +58,9 @@ class Robot {
         PIDController headingPID = PIDController(0.01, 0.0, 0.001, -1.0, 1.0);
         
         // Boundary escape timing and last safe direction.
-        static constexpr uint8_t BOUNDARY_ESCAPE_SPD = 80;
-        static constexpr uint16_t ESCAPE_DURATION = 7;
-        static constexpr uint16_t ESCAPE_BUFFER = 10;
+        static constexpr uint8_t BOUNDARY_ESCAPE_SPD = 130;
+        static constexpr uint16_t ESCAPE_DURATION = 100;
+        static constexpr uint16_t ESCAPE_BUFFER = 120;
         elapsedMillis elapsedEscapeTime = ESCAPE_DURATION;
         float escapeDirection = 0.0f;
 
