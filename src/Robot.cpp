@@ -41,6 +41,7 @@ void Robot::setup() {
     robotCommunication.setup();
     imu.setup(); imu.resetYawOrigin();
     odometry.setup();
+    pinMode(LED_PIN, OUTPUT);
 }
 
 void Robot::run() {
@@ -52,6 +53,14 @@ void Robot::run() {
 
     elapsedLastUpdateTime = 0;
     logTelemetry();
+}
+
+void Robot::displayState() {
+    if (strategy.getRole() == Strategy::Role::ATTACK) {
+        digitalWrite(LED_PIN, HIGH);
+    } else {
+        digitalWrite(LED_PIN, LOW);
+    }
 }
 
 void Robot::updateSensors() {
@@ -102,6 +111,7 @@ void Robot::updateStrategy(bool running) {
 
     // Keep sharing state while idle or escaping a boundary.
     sendBluetoothUpdate();
+    displayState();
 }
 
 void Robot::updateMovement(bool running) {
@@ -114,7 +124,7 @@ void Robot::updateMovement(bool running) {
         static_cast<float>(elapsedLastUpdateTime) / 1000000.0f,
         0.000001f);
     handleHeadingCorrection(updateDt, targetHeading);
-    boundaryEscaping = handleEdgeDetection(updateDt);
+    // boundaryEscaping = handleEdgeDetection(updateDt);
 
     const bool strategyUpdateDue = elapsedLastLoopTime >= LOOP_TIME_MS;
     if (boundaryEscaping || !strategyUpdateDue) {
@@ -124,6 +134,7 @@ void Robot::updateMovement(bool running) {
     const float strategyDt = elapsedLastLoopTime / 1000.0f;
     elapsedLastLoopTime = 0;
     enforceDefinedRoleBehaviour(strategyDt);
+    // drive.moveToPoint(strategyDt, 130, {0, 300}, odometry, imu.getRelativeYaw());
 }
 
 void Robot::logTelemetry() {
@@ -133,10 +144,10 @@ void Robot::logTelemetry() {
         log.log("bothAttack", (strategy.getCommunicationFlags() & 0x08) != 0);
 
         // Ball
-        log.log("ballDeg", irSensor.getDirectionDegrees());
-        log.log("ballStr", irSensor.getSignalStrength());
-        log.log("ballAgeMs", static_cast<uint32_t>(millis() - irSensor.getLastUpdateMillis()));
-        // log.log("colour", colourSensor.sensorState());
+        // log.log("ballDeg", irSensor.getDirectionDegrees());
+        // log.log("ballStr", irSensor.getSignalStrength());
+        // log.log("ballAgeMs", static_cast<uint32_t>(millis() - irSensor.getLastUpdateMillis()));
+        log.log("colour", colourSensor.getDirectionDegrees());
 
         // Position
         // log.log("heading", imu.getRelativeYaw());
@@ -145,12 +156,12 @@ void Robot::logTelemetry() {
         // log.log("odometryH", odometry.getHeading());
 
         // Movement
-        // log.log("role", strategy.getRole() == Strategy::Role::ATTACK ? "ATTACK" : "DEFENCE");
-        // log.log("stage", strategy.getRole() == Strategy::Role::ATTACK
-        //     ? static_cast<uint8_t>(strategy.getTrackingStage())
-        //     : static_cast<uint8_t>(strategy.getDefenceStage()));
+        log.log("role", strategy.getRole() == Strategy::Role::ATTACK ? "ATTACK" : "DEFENCE");
+        log.log("stage", strategy.getRole() == Strategy::Role::ATTACK
+            ? static_cast<uint8_t>(strategy.getTrackingStage())
+            : static_cast<uint8_t>(strategy.getDefenceStage()));
         // log.log("driveRPM", drive.lastTranslationRpm);
-        // log.log("moveDeg", drive.lastDirection);
+        log.log("moveDeg", drive.lastDirection);
         // log.log("m1RPM", drive.motor1.angularVelocityRPM);
         // log.log("edgeEscape", boundaryEscaping);
 
@@ -184,7 +195,7 @@ bool Robot::handleEdgeDetection(const float dt) {
             escapeDirection = degrees(edgeVector.angle) + 180.0f;
         }
         elapsedEscapeTime = 0;
-        // odometry.boundaryAlignOdometry(edgeVector, imu.getRelativeYaw());
+        odometry.boundaryAlignOdometry(edgeVector, imu.getRelativeYaw());
     }
 
     if ((elapsedEscapeTime - ESCAPE_DURATION) <= ESCAPE_BUFFER &&
