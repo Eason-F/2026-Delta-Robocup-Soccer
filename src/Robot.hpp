@@ -60,9 +60,11 @@ class Robot {
         // Boundary escape timing and last safe direction.
         static constexpr uint8_t BOUNDARY_ESCAPE_SPD = 130;
         static constexpr uint16_t ESCAPE_DURATION = 100;
-        static constexpr uint16_t ESCAPE_BUFFER = 120;
+        static constexpr float BOUNDARY_ODOMETRY_TOLERANCE = 300.0f; // mm
         elapsedMillis elapsedEscapeTime = ESCAPE_DURATION;
         float escapeDirection = 0.0f;
+        bool escapeActive = false;
+        bool edgePreviouslyDetected = false;
 
         // Runtime state and loop clocks.
         elapsedMicros elapsedLastUpdateTime;

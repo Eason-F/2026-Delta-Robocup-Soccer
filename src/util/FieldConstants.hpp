@@ -13,6 +13,8 @@ class FieldConstants {
         static constexpr float fieldWidth = 1820.0f;
         static constexpr float boundaryInset = 250.0f;
         static constexpr float boundaryLineWidth = 50.0f;
+        // Robot-centre distance inside the inner edge when a colour sensor sees the line.
+        static constexpr float boundarySensorOffset = 100.0f;
         static constexpr float goalBoxDepth = 300.0f;
         static constexpr float goalBoxWidth = 900.0f;
         static constexpr float goalDepth = 74.0f;
