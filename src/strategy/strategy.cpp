@@ -130,7 +130,6 @@ void Strategy::setRole(Role newRole) {
     if (rolesInitialized && role == newRole) return;
     role = newRole;
     robot.targetHeading = 0;
-    transitionTime = 0;
     orbitDebounceTime = 0;
     alignedTime = 0;
     capturedGoalTargetLocked = false;
@@ -305,10 +304,8 @@ void Strategy::maneuverAroundBall(const float dt, const float targetBallHeading)
             break;
         }
         case TrackingStage::TRANSITION: {
-            const float ballDirection = robot.irSensor.getDirectionDegrees();
-            const float direction = abs(ballDirection) <= AttackConfig::HEADING_DEADBAND
-                ? 0.0f : ballDirection;
-            robot.drive.moveInDirection(dt, direction, AttackConfig::TRANSITION_SPD);
+            robot.drive.moveInDirection(
+                dt, robot.irSensor.getDirectionDegrees(), AttackConfig::TRANSITION_SPD);
             break;
         }
         default: {
@@ -331,28 +328,21 @@ void Strategy::transitionToTrackingStage(const TrackingStage nextStage) {
         case TrackingStage::SEARCH:
             alignedTime = 0;
             orbitDebounceTime = 0;
-            transitionTime = 0;
             break;
         case TrackingStage::APPROACH:
             alignedTime = 0;
             orbitDebounceTime = 0;
-            if (previousStage != TrackingStage::ORBIT) {
-                transitionTime = 0;
-            }
             break;
         case TrackingStage::ORBIT:
             alignedTime = 0;
             if (previousStage == TrackingStage::APPROACH) {
                 orbitDebounceTime = 0;
-            } else if (previousStage == TrackingStage::TRANSITION) {
-                transitionTime = 0;
             }
             break;
         case TrackingStage::TRANSITION:
-            transitionTime = 0;
+            alignedTime = 0;
             break;
         case TrackingStage::CAPTURED: {
-            transitionTime = 0;
             alignedTime = 0;
             const Position2D robotPosition = robot.odometry.getPosition();
             capturedGoalTarget =
@@ -396,24 +386,20 @@ void Strategy::checkTrackingStage(const float, const float targetBallHeading) {
         case TrackingStage::ORBIT:
             if (distanceError > AttackConfig::ORBIT_EXIT_TOLERANCE) {
                 transitionToTrackingStage(TrackingStage::APPROACH);
-            } else if (headingError > AttackConfig::ENTER_ALIGNMENT_TOLERANCE) {
-                alignedTime = 0;
-            } else if (alignedTime >= AttackConfig::ALIGNED_DEBOUNCE_MS) {
-                transitionToTrackingStage(TrackingStage::CAPTURED);
+            } else if (headingError <= AttackConfig::ENTER_ALIGNMENT_TOLERANCE) {
+                transitionToTrackingStage(TrackingStage::TRANSITION);
             }
             return;
 
         case TrackingStage::TRANSITION:
-            if (transitionTime < AttackConfig::TRANSITION_MIN_MS) return;
-
             if (distanceError > AttackConfig::ORBIT_EXIT_TOLERANCE) {
                 transitionToTrackingStage(TrackingStage::APPROACH);
             } else if (headingError > AttackConfig::EXIT_ALIGNMENT_TOLERANCE) {
                 transitionToTrackingStage(TrackingStage::ORBIT);
-            } else if (signalStrength < AttackConfig::ENTER_ALIGNMENT_TOLERANCE) {
+            } else if (headingError > AttackConfig::ENTER_ALIGNMENT_TOLERANCE) {
+                alignedTime = 0;
+            } else if (alignedTime >= AttackConfig::ALIGNED_DEBOUNCE_MS) {
                 transitionToTrackingStage(TrackingStage::CAPTURED);
-            } else if (transitionTime >= AttackConfig::TRANSITION_TIMEOUT) {
-                transitionToTrackingStage(TrackingStage::SEARCH);
             }
             return;
 
