@@ -211,6 +211,7 @@ void Strategy::returnToHome(const float dt) {
         FieldConstants::friendlyGoalBoxBottomLeft.y + DefenceConfig::BOX_INSET_MM,
         FieldConstants::friendlyGoalBoxTopRight.y - DefenceConfig::BOX_INSET_MM);
     const Position2D targetPosition = {targetX, targetY};
+    // const Position2D targetPosition = FieldConstants::friendlyGoalPosition;
     robot.drive.moveToPoint(dt, DefenceConfig::RETURN_SPD, targetPosition, robot.odometry, robot.imu.getRelativeYaw());
 }
 
@@ -436,7 +437,7 @@ float Strategy::calculateAngleToGoal() const {
 }
 
 void Strategy::orbitAroundBall(const float dt, const float targetBallHeading) {
-    robot.targetHeading = calculateAngleToGoal();
+    robot.targetHeading = constrain(calculateAngleToGoal(), -40, 40);
     float ballDirection = robot.irSensor.getDirectionDegrees();
     float ballStrength = robot.irSensor.getSignalStrength();
     const float targetRobotBearing = util::wrapAngle180(

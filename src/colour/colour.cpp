@@ -14,11 +14,11 @@ void ColourSensor::setup() {
     left.setup();
 }
 
-void ColourSensor::update(long elapsedMillis) {
-    front.update(elapsedMillis);
-    right.update(elapsedMillis);
-    back.update(elapsedMillis);
-    left.update(elapsedMillis);
+void ColourSensor::update() {
+    front.update();
+    right.update();
+    back.update();
+    left.update();
 }
 
 bool ColourSensor::detectedEdge() {

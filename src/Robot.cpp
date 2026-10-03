@@ -64,7 +64,7 @@ void Robot::displayState() {
 }
 
 void Robot::updateSensors() {
-    colourSensor.update(elapsedLastUpdateTime);
+    colourSensor.update();
     uartTransport.update();
     imu.update();
     odometry.update();
@@ -121,8 +121,7 @@ void Robot::updateMovement(bool running) {
     }
 
     const float updateDt = max(
-        static_cast<float>(elapsedLastUpdateTime) / 1000000.0f,
-        0.000001f);
+        static_cast<float>(elapsedLastUpdateTime) / 1000000.0f, 0.000001f);
     handleHeadingCorrection(updateDt, targetHeading);
     boundaryEscaping = handleEdgeDetection(updateDt);
 
@@ -139,15 +138,16 @@ void Robot::updateMovement(bool running) {
 
 void Robot::logTelemetry() {
     logger.update([this](Logger &log) {
-        log.log("t", static_cast<int>(millis() / 1000.0f));
-        log.log("preset", startingPreset.hasPosition());
-        log.log("bothAttack", (strategy.getCommunicationFlags() & 0x08) != 0);
+        log.log("t", static_cast<int>(millis()));
+        // log.log("preset", startingPreset.hasPosition());
+        // log.log("bothAttack", (strategy.getCommunicationFlags() & 0x08) != 0);
 
         // Ball
         log.log("ballDeg", irSensor.getDirectionDegrees());
         log.log("ballStr", irSensor.getSignalStrength());
         // log.log("ballAgeMs", static_cast<uint32_t>(millis() - irSensor.getLastUpdateMillis()));
-        // log.log("colour", colourSensor.getDirectionDegrees());
+        log.log("colourDir", colourSensor.getDirectionDegrees());
+        log.log("colourDetected", colourSensor.detectedEdge());
 
         // Position
         // log.log("heading", imu.getRelativeYaw());

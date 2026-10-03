@@ -94,14 +94,14 @@ class Strategy {
 
             // Search and approach tuning 
             static constexpr uint16_t SEARCH_SPD = 270;
-            static constexpr uint16_t APPROACH_SPD = 180;
+            static constexpr uint16_t APPROACH_SPD = 200;
             static constexpr uint16_t TRANSITION_MIN_MS = 300;
             static constexpr uint16_t TRANSITION_TIMEOUT = 700;
 
             // Orbit controller tuning and transition hysteresis.
-            static constexpr uint16_t ORBIT_APPROACH_SPD = 210;
-            static constexpr uint16_t ORBIT_SPD = 180;
-            static constexpr uint16_t ORBIT_DISTANCE = 60;
+            static constexpr uint16_t ORBIT_APPROACH_SPD = 240;
+            static constexpr uint16_t ORBIT_SPD = 210;
+            static constexpr uint16_t ORBIT_DISTANCE = 65;
             static constexpr uint16_t ORBIT_ENTRY_TOLERANCE = 10;
             static constexpr uint16_t ORBIT_EXIT_TOLERANCE = 35;
             static constexpr uint16_t ORBIT_DEBOUNCE_MS = 200;
@@ -109,7 +109,7 @@ class Strategy {
             static constexpr uint16_t TRANSITION_SPD = 180;
 
             // Captured-ball alignment and forward-speed ramp.
-            static constexpr uint16_t CAPTURED_MAX_SPD = 290;
+            static constexpr uint16_t CAPTURED_MAX_SPD = 240;
             static constexpr uint16_t CAPTURED_MIN_SPD = 230;
             static constexpr uint16_t ENTER_ALIGNMENT_TOLERANCE = 10;
             static constexpr uint16_t EXIT_ALIGNMENT_TOLERANCE = 40;
@@ -128,16 +128,12 @@ class Strategy {
         void transitionToTrackingStage(TrackingStage nextStage);
          
         PIDController approachPID = PIDController(0.5, 0, 0, 0.0, 1.0);
-        PIDController orbitTangentPID = PIDController(0.04, 0, 0.001, -1.0, 1.0);
+        PIDController orbitTangentPID = PIDController(0.03, 0, 0.001, -1.0, 1.0);
         PIDController orbitDistancePID = PIDController(0.3, 0, 0.001, 0.0, 1.0);
 
         struct DefenceConfig {
             // Clearance from every goal-box edge used for normal tracking.
-            static constexpr float BOX_INSET_MM = 25.0f;
-
-            // Speed limits while returning from outside the full goal box.
-            static constexpr float RETURN_MAX_SPD = 270.0f;
-            static constexpr float RETURN_MIN_SPD = 180.0f;
+            static constexpr float BOX_INSET_MM = 50.0f;
 
             // Lateral tracking and jitter speeds.
             static constexpr float SHUFFLE_MAX_SPD = 180.0f;
@@ -147,17 +143,17 @@ class Strategy {
             // Ball-bearing tolerance within which the defender stays centred.
             static constexpr float ALIGNMENT_DEADBAND_DEG = 20.0f;
             static constexpr float RESPONSE_HALF_ANGLE_DEG = 100.0f; // Defender handoff response cone, measured either side of forward.
-            static constexpr float RESPONSE_MIN_STRENGTH = 20.0f; // Minimum local ball strength required to initiate a handoff. 
+            static constexpr float RESPONSE_MIN_STRENGTH = 50.0f; // Minimum local ball strength required to initiate a handoff. 
 
             // Robot-relative bearing beyond which the attacker has overshot the ball.
             static constexpr float ATTACKER_BEHIND_ANGLE_DEG = 130.0f;
 
             // Maximum attacker ball strength treated as a distant overshoot.
-            static constexpr float ATTACKER_FAR_STRENGTH = 20.0f;
-            static constexpr uint16_t RETURN_SPD = 130;
+            static constexpr float ATTACKER_FAR_STRENGTH = 10.0f;
+            static constexpr uint16_t RETURN_SPD = 200;
         };
 
-        PIDController defenceReturnPID = PIDController(3.0f, 0, 0, 0, DefenceConfig::RETURN_MAX_SPD);
+        PIDController defenceReturnPID = PIDController(3.0f, 0, 0, 0, DefenceConfig::RETURN_SPD);
         PIDController shuffleBearingPID = PIDController(3.0f, 0, 0,
             -DefenceConfig::SHUFFLE_MAX_SPD, DefenceConfig::SHUFFLE_MAX_SPD);
 

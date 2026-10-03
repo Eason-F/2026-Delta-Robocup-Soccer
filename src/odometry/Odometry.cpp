@@ -2,7 +2,7 @@
 #include <odometry/Odometry.hpp>
 #include <util/util.hpp>
 
-sfe_otos_pose2d_t OpticalOdometry::SENSOR_OFFSET = {0.0f, 0.0f, -135.0f};
+sfe_otos_pose2d_t OpticalOdometry::SENSOR_OFFSET = {0.0f, 0.0f, -45.0f};
 
 OpticalOdometry::OpticalOdometry(TwoWire &wirePort) : wirePort(wirePort) {}
 

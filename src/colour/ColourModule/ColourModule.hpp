@@ -9,15 +9,14 @@ class ColourModule {
     public:
         ColourModule(const int &pin, const float &direction);
         void setup();
-        void update(long elapsedMillis);
+        void update();
         bool detectedEdge();
         Vector getVector();
 
     private:
-        // direction is a robot-relative angle in radians.
         const int pin;
         const float direction;
         
         static constexpr uint8_t DEBOUNCE_BUFFER_MS = 10;
-        unsigned long detectionBufferRemaining = 0;
+        elapsedMillis accumulatedDetectionTime = DEBOUNCE_BUFFER_MS;
 };
