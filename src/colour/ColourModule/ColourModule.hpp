@@ -18,6 +18,6 @@ class ColourModule {
         const int pin;
         const float direction;
         
-        static constexpr uint8_t DEBOUNCE_BUFFER_MS = 100;
+        static constexpr uint8_t DEBOUNCE_BUFFER_MS = 10;
         unsigned long detectionBufferRemaining = 0;
 };

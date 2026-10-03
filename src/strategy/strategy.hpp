@@ -84,39 +84,36 @@ class Strategy {
         struct AttackConfig {
             // Positions where goal tilt aims
             static constexpr Position2D GOAL_AIM_LEFT = {
-                FieldConstants::opponentGoalLeftPost.x + 70.0f,
+                FieldConstants::opponentGoalLeftPost.x + 150.0f,
                 FieldConstants::opponentGoalLeftPost.y
             };
             static constexpr Position2D GOAL_AIM_RIGHT = {
-                FieldConstants::opponentGoalRightPost.x - 70.0f,
+                FieldConstants::opponentGoalRightPost.x - 150.0f,
                 FieldConstants::opponentGoalRightPost.y
             };
 
             // Search and approach tuning 
             static constexpr uint16_t SEARCH_SPD = 270;
-            static constexpr uint16_t APPROACH_SPD = 130;
+            static constexpr uint16_t APPROACH_SPD = 180;
             static constexpr uint16_t TRANSITION_MIN_MS = 300;
             static constexpr uint16_t TRANSITION_TIMEOUT = 700;
 
             // Orbit controller tuning and transition hysteresis.
-            static constexpr uint16_t ORBIT_APPROACH_SPD = 180;
-            static constexpr uint16_t ORBIT_SPD = 150;
-            static constexpr uint16_t ORBIT_DISTANCE = 40;
-            static constexpr uint16_t ORBIT_ENTRY_TOLERANCE = 10;
-            static constexpr uint16_t ORBIT_EXIT_TOLERANCE = 15;
+            static constexpr uint16_t ORBIT_APPROACH_SPD = 240;
+            static constexpr uint16_t ORBIT_SPD = 210;
+            static constexpr uint16_t ORBIT_DISTANCE = 60;
+            static constexpr uint16_t ORBIT_ENTRY_TOLERANCE = 20;
+            static constexpr uint16_t ORBIT_EXIT_TOLERANCE = 35;
             static constexpr uint16_t ORBIT_DEBOUNCE_MS = 100;
 
-            // Once aligned, charge through the final gap to secure the ball.
             static constexpr uint16_t TRANSITION_SPD = 180;
-            static constexpr uint16_t CAPTURED_DISTANCE = 130;
-            static constexpr uint16_t CAPTURED_EXIT_DISTANCE = 110;
 
             // Captured-ball alignment and forward-speed ramp.
-            static constexpr uint16_t CAPTURED_MAX_SPD = 250;
-            static constexpr uint16_t CAPTURED_MIN_SPD = 190;
+            static constexpr uint16_t CAPTURED_MAX_SPD = 290;
+            static constexpr uint16_t CAPTURED_MIN_SPD = 230;
             static constexpr uint16_t ENTER_ALIGNMENT_TOLERANCE = 10;
-            static constexpr uint16_t EXIT_ALIGNMENT_TOLERANCE = 30;
-            static constexpr uint16_t HEADING_DEADBAND = 7;
+            static constexpr uint16_t EXIT_ALIGNMENT_TOLERANCE = 40;
+            static constexpr uint16_t HEADING_DEADBAND = 0;
             static constexpr float GOAL_ALIGNMENT_FULL_SPEED_DEG = 60.0f;
             static constexpr float GOAL_ALIGNMENT_MIN_SPEED_FACTOR = 0.25f;
             static constexpr uint16_t SPEED_RAMP_MAX_MS = 1000;
@@ -132,9 +129,9 @@ class Strategy {
         bool capturedGoalTargetLocked = false;
 
         void transitionToTrackingStage(TrackingStage nextStage);
-        
+         
         PIDController approachPID = PIDController(0.5, 0, 0, 0.0, 1.0);
-        PIDController orbitTangentPID = PIDController(0.05, 0, 0.001, -1.0, 1.0);
+        PIDController orbitTangentPID = PIDController(0.02, 0, 0.001, -1.0, 1.0);
         PIDController orbitDistancePID = PIDController(0.3, 0, 0.001, 0.0, 1.0);
 
         struct DefenceConfig {
@@ -152,8 +149,8 @@ class Strategy {
 
             // Ball-bearing tolerance within which the defender stays centred.
             static constexpr float ALIGNMENT_DEADBAND_DEG = 20.0f;
-            static constexpr float RESPONSE_HALF_ANGLE_DEG = 80.0f; // Defender handoff response cone, measured either side of forward.
-            static constexpr float RESPONSE_MIN_STRENGTH = 30.0f; // Minimum local ball strength required to initiate a handoff. 
+            static constexpr float RESPONSE_HALF_ANGLE_DEG = 100.0f; // Defender handoff response cone, measured either side of forward.
+            static constexpr float RESPONSE_MIN_STRENGTH = 20.0f; // Minimum local ball strength required to initiate a handoff. 
 
             // Robot-relative bearing beyond which the attacker has overshot the ball.
             static constexpr float ATTACKER_BEHIND_ANGLE_DEG = 130.0f;

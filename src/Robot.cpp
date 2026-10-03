@@ -124,7 +124,7 @@ void Robot::updateMovement(bool running) {
         static_cast<float>(elapsedLastUpdateTime) / 1000000.0f,
         0.000001f);
     handleHeadingCorrection(updateDt, targetHeading);
-    // boundaryEscaping = handleEdgeDetection(updateDt);
+    boundaryEscaping = handleEdgeDetection(updateDt);
 
     const bool strategyUpdateDue = elapsedLastLoopTime >= LOOP_TIME_MS;
     if (boundaryEscaping || !strategyUpdateDue) {
@@ -144,15 +144,15 @@ void Robot::logTelemetry() {
         log.log("bothAttack", (strategy.getCommunicationFlags() & 0x08) != 0);
 
         // Ball
-        // log.log("ballDeg", irSensor.getDirectionDegrees());
-        // log.log("ballStr", irSensor.getSignalStrength());
+        log.log("ballDeg", irSensor.getDirectionDegrees());
+        log.log("ballStr", irSensor.getSignalStrength());
         // log.log("ballAgeMs", static_cast<uint32_t>(millis() - irSensor.getLastUpdateMillis()));
-        log.log("colour", colourSensor.getDirectionDegrees());
+        // log.log("colour", colourSensor.getDirectionDegrees());
 
         // Position
         // log.log("heading", imu.getRelativeYaw());
-        // log.log("odometryX", odometry.getX());
-        // log.log("odometryY", odometry.getY());
+        log.log("odometryX", odometry.getX());
+        log.log("odometryY", odometry.getY());
         // log.log("odometryH", odometry.getHeading());
 
         // Movement
@@ -161,7 +161,7 @@ void Robot::logTelemetry() {
             ? static_cast<uint8_t>(strategy.getTrackingStage())
             : static_cast<uint8_t>(strategy.getDefenceStage()));
         // log.log("driveRPM", drive.lastTranslationRpm);
-        log.log("moveDeg", drive.lastDirection);
+        // log.log("moveDeg", drive.lastDirection);
         // log.log("m1RPM", drive.motor1.angularVelocityRPM);
         // log.log("edgeEscape", boundaryEscaping);
 

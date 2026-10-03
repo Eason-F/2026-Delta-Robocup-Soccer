@@ -60,7 +60,7 @@ class Robot {
         // Boundary escape timing and last safe direction.
         static constexpr uint8_t BOUNDARY_ESCAPE_SPD = 130;
         static constexpr uint16_t ESCAPE_DURATION = 100;
-        static constexpr uint16_t ESCAPE_BUFFER = 120;
+        static constexpr uint16_t ESCAPE_BUFFER = 150;
         elapsedMillis elapsedEscapeTime = ESCAPE_DURATION;
         float escapeDirection = 0.0f;
 

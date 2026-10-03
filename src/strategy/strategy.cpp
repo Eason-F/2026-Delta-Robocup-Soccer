@@ -93,8 +93,7 @@ void Strategy::update() {
     if (epochDifference != 0) {
         if (epochDifference < 4) {
             roleEpoch = teammateEpoch;
-            setRole(teammate.role == static_cast<uint8_t>(Role::ATTACK)
-                        ? Role::DEFENCE : Role::ATTACK);
+            setRole(teammate.role == static_cast<uint8_t>(Role::ATTACK) ? Role::DEFENCE : Role::ATTACK);
         }
 
         return;
@@ -399,7 +398,7 @@ void Strategy::checkTrackingStage(const float, const float targetBallHeading) {
             } else if (headingError > AttackConfig::ENTER_ALIGNMENT_TOLERANCE) {
                 alignedTime = 0;
             } else if (alignedTime >= AttackConfig::ALIGNED_DEBOUNCE_MS) {
-                transitionToTrackingStage(TrackingStage::TRANSITION);
+                transitionToTrackingStage(TrackingStage::CAPTURED);
             }
             return;
 
@@ -410,7 +409,7 @@ void Strategy::checkTrackingStage(const float, const float targetBallHeading) {
                 transitionToTrackingStage(TrackingStage::APPROACH);
             } else if (headingError > AttackConfig::EXIT_ALIGNMENT_TOLERANCE) {
                 transitionToTrackingStage(TrackingStage::ORBIT);
-            } else if (signalStrength >= AttackConfig::CAPTURED_DISTANCE) {
+            } else if (signalStrength < AttackConfig::ENTER_ALIGNMENT_TOLERANCE) {
                 transitionToTrackingStage(TrackingStage::CAPTURED);
             } else if (transitionTime >= AttackConfig::TRANSITION_TIMEOUT) {
                 transitionToTrackingStage(TrackingStage::SEARCH);
@@ -420,8 +419,6 @@ void Strategy::checkTrackingStage(const float, const float targetBallHeading) {
         case TrackingStage::CAPTURED:
             if (headingError > AttackConfig::EXIT_ALIGNMENT_TOLERANCE) {
                 transitionToTrackingStage(TrackingStage::ORBIT);
-            } else if (signalStrength < AttackConfig::CAPTURED_EXIT_DISTANCE) {
-                transitionToTrackingStage(TrackingStage::TRANSITION);
             }
             return;
     }
@@ -470,23 +467,8 @@ void Strategy::orbitAroundPoint(const float dt, const float targetHeading,
 
 void Strategy::pushCapturedBallToGoal(const float dt) {
     const float goalHeading = calculateAngleToGoal();
-    robot.targetHeading = goalHeading;
-
-    const float headingError = abs(util::wrapAngle180(
-        goalHeading - robot.imu.getRelativeYaw()));
-    const float alignmentFactor = constrain(
-        1.0f - headingError / AttackConfig::GOAL_ALIGNMENT_FULL_SPEED_DEG,
-        AttackConfig::GOAL_ALIGNMENT_MIN_SPEED_FACTOR, 1.0f);
-
-    const float rampTime = 
-        max(static_cast<float>(alignedTime) - AttackConfig::ALIGNED_DEBOUNCE_MS, 0.0f);
-    const float rampFactor = 
-        min((rampTime + 100.0f) / AttackConfig::SPEED_RAMP_MAX_MS, 1.0f);
-    const float speed =
-        (AttackConfig::CAPTURED_MIN_SPD +
-         rampFactor * (AttackConfig::CAPTURED_MAX_SPD -
-                       AttackConfig::CAPTURED_MIN_SPD)) *
-        alignmentFactor;
+    robot.targetHeading = 0;
+    const float speed = AttackConfig::CAPTURED_MAX_SPD;
 
     const float ballDirection =
         abs(robot.irSensor.getDirectionDegrees()) <=
