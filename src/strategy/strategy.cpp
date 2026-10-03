@@ -436,6 +436,7 @@ float Strategy::calculateAngleToGoal() const {
 }
 
 void Strategy::orbitAroundBall(const float dt, const float targetBallHeading) {
+    robot.targetHeading = calculateAngleToGoal();
     float ballDirection = robot.irSensor.getDirectionDegrees();
     float ballStrength = robot.irSensor.getSignalStrength();
     const float targetRobotBearing = util::wrapAngle180(
@@ -466,8 +467,6 @@ void Strategy::orbitAroundPoint(const float dt, const float targetHeading,
 }
 
 void Strategy::pushCapturedBallToGoal(const float dt) {
-    const float goalHeading = calculateAngleToGoal();
-    robot.targetHeading = 0;
     const float speed = AttackConfig::CAPTURED_MAX_SPD;
 
     const float ballDirection =
