@@ -7,24 +7,16 @@ void ColourModule::setup() {
     pinMode(pin, INPUT_PULLUP);
 }
 
-void ColourModule::update(long elapsedMillis) {
+void ColourModule::update() {
     // A high reading refreshes the latch; low readings count it down to zero.
     if (digitalReadFast(pin)) {
-        detectionBufferRemaining = DEBOUNCE_BUFFER_MS;
         return;
     }
-
-    const unsigned long elapsed = elapsedMillis > 0 ? static_cast<unsigned long>(elapsedMillis) : 0;
-
-    if (elapsed >= detectionBufferRemaining) {
-        detectionBufferRemaining = 0;
-    } else {
-        detectionBufferRemaining -= elapsed;
-    }
+    accumulatedDetectionTime = 0;
 }
 
 bool ColourModule::detectedEdge() {
-    return detectionBufferRemaining > 0;
+    return accumulatedDetectionTime >= DEBOUNCE_BUFFER_MS;
 } 
 
 Vector ColourModule::getVector() {

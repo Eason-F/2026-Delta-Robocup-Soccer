@@ -64,7 +64,7 @@ void Robot::displayState() {
 }
 
 void Robot::updateSensors() {
-    colourSensor.update(elapsedLastUpdateTime);
+    colourSensor.update();
     uartTransport.update();
     imu.update();
     odometry.update();
@@ -121,10 +121,9 @@ void Robot::updateMovement(bool running) {
     }
 
     const float updateDt = max(
-        static_cast<float>(elapsedLastUpdateTime) / 1000000.0f,
-        0.000001f);
+        static_cast<float>(elapsedLastUpdateTime) / 1000000.0f, 0.000001f);
     handleHeadingCorrection(updateDt, targetHeading);
-    // boundaryEscaping = handleEdgeDetection(updateDt);
+    boundaryEscaping = handleEdgeDetection(updateDt);
 
     const bool strategyUpdateDue = elapsedLastLoopTime >= LOOP_TIME_MS;
     if (boundaryEscaping || !strategyUpdateDue) {
@@ -139,31 +138,35 @@ void Robot::updateMovement(bool running) {
 
 void Robot::logTelemetry() {
     logger.update([this](Logger &log) {
-        log.log("t", static_cast<int>(millis() / 1000.0f));
-        log.log("preset", startingPreset.hasPosition());
-        log.log("bothAttack", (strategy.getCommunicationFlags() & 0x08) != 0);
+        log.log("t", static_cast<int>(millis() / 1000));
+        // log.log("preset", startingPreset.hasPosition());
+        // log.log("bothAttack", (strategy.getCommunicationFlags() & 0x08) != 0);
+        log.log("role", strategy.getRole() == Strategy::Role::ATTACK ? "ATTACK" : "DEFENCE");
+        // log.log("stage", strategy.getRole() == Strategy::Role::ATTACK
+        //     ? static_cast<uint8_t>(strategy.getTrackingStage())
+        //     : static_cast<uint8_t>(strategy.getDefenceStage()));
 
         // Ball
-        // log.log("ballDeg", irSensor.getDirectionDegrees());
-        // log.log("ballStr", irSensor.getSignalStrength());
+        log.log("ballDeg", irSensor.getDirectionDegrees());
+        log.log("ballStr", irSensor.getSignalStrength());
         // log.log("ballAgeMs", static_cast<uint32_t>(millis() - irSensor.getLastUpdateMillis()));
-        log.log("colour", colourSensor.getDirectionDegrees());
+
+        // Boundary
+        // log.log("colourDir", colourSensor.getDirectionDegrees());
+        // log.log("colourDetected", colourSensor.detectedEdge());
 
         // Position
         // log.log("heading", imu.getRelativeYaw());
-        // log.log("odometryX", odometry.getX());
-        // log.log("odometryY", odometry.getY());
+        log.log("odometryX", odometry.getX());
+        log.log("odometryY", odometry.getY());
         // log.log("odometryH", odometry.getHeading());
 
         // Movement
-        log.log("role", strategy.getRole() == Strategy::Role::ATTACK ? "ATTACK" : "DEFENCE");
-        log.log("stage", strategy.getRole() == Strategy::Role::ATTACK
-            ? static_cast<uint8_t>(strategy.getTrackingStage())
-            : static_cast<uint8_t>(strategy.getDefenceStage()));
         // log.log("driveRPM", drive.lastTranslationRpm);
-        log.log("moveDeg", drive.lastDirection);
         // log.log("m1RPM", drive.motor1.angularVelocityRPM);
+        // log.log("moveDeg", drive.lastDirection);
         // log.log("edgeEscape", boundaryEscaping);
+        log.log("angToGoal", strategy.calculateAngleToGoal());
 
         // Teammate
         // log.log("bltX", robotCommunication.getReceivedPacket().x);

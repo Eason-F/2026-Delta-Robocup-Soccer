@@ -93,8 +93,7 @@ void Strategy::update() {
     if (epochDifference != 0) {
         if (epochDifference < 4) {
             roleEpoch = teammateEpoch;
-            setRole(teammate.role == static_cast<uint8_t>(Role::ATTACK)
-                        ? Role::DEFENCE : Role::ATTACK);
+            setRole(teammate.role == static_cast<uint8_t>(Role::ATTACK) ? Role::DEFENCE : Role::ATTACK);
         }
 
         return;
@@ -131,7 +130,6 @@ void Strategy::setRole(Role newRole) {
     if (rolesInitialized && role == newRole) return;
     role = newRole;
     robot.targetHeading = 0;
-    transitionTime = 0;
     orbitDebounceTime = 0;
     alignedTime = 0;
     capturedGoalTargetLocked = false;
@@ -212,6 +210,7 @@ void Strategy::returnToHome(const float dt) {
         FieldConstants::friendlyGoalBoxBottomLeft.y + DefenceConfig::BOX_INSET_MM,
         FieldConstants::friendlyGoalBoxTopRight.y - DefenceConfig::BOX_INSET_MM);
     const Position2D targetPosition = {targetX, targetY};
+    // const Position2D targetPosition = FieldConstants::friendlyGoalPosition;
     robot.drive.moveToPoint(dt, DefenceConfig::RETURN_SPD, targetPosition, robot.odometry, robot.imu.getRelativeYaw());
 }
 
@@ -305,10 +304,8 @@ void Strategy::maneuverAroundBall(const float dt, const float targetBallHeading)
             break;
         }
         case TrackingStage::TRANSITION: {
-            const float ballDirection = robot.irSensor.getDirectionDegrees();
-            const float direction = abs(ballDirection) <= AttackConfig::HEADING_DEADBAND
-                ? 0.0f : ballDirection;
-            robot.drive.moveInDirection(dt, direction, AttackConfig::TRANSITION_SPD);
+            robot.drive.moveInDirection(
+                dt, robot.irSensor.getDirectionDegrees(), AttackConfig::TRANSITION_SPD);
             break;
         }
         default: {
@@ -331,28 +328,21 @@ void Strategy::transitionToTrackingStage(const TrackingStage nextStage) {
         case TrackingStage::SEARCH:
             alignedTime = 0;
             orbitDebounceTime = 0;
-            transitionTime = 0;
             break;
         case TrackingStage::APPROACH:
             alignedTime = 0;
             orbitDebounceTime = 0;
-            if (previousStage != TrackingStage::ORBIT) {
-                transitionTime = 0;
-            }
             break;
         case TrackingStage::ORBIT:
             alignedTime = 0;
             if (previousStage == TrackingStage::APPROACH) {
                 orbitDebounceTime = 0;
-            } else if (previousStage == TrackingStage::TRANSITION) {
-                transitionTime = 0;
             }
             break;
         case TrackingStage::TRANSITION:
-            transitionTime = 0;
+            alignedTime = 0;
             break;
         case TrackingStage::CAPTURED: {
-            transitionTime = 0;
             alignedTime = 0;
             const Position2D robotPosition = robot.odometry.getPosition();
             capturedGoalTarget =
@@ -396,32 +386,26 @@ void Strategy::checkTrackingStage(const float, const float targetBallHeading) {
         case TrackingStage::ORBIT:
             if (distanceError > AttackConfig::ORBIT_EXIT_TOLERANCE) {
                 transitionToTrackingStage(TrackingStage::APPROACH);
-            } else if (headingError > AttackConfig::ENTER_ALIGNMENT_TOLERANCE) {
-                alignedTime = 0;
-            } else if (alignedTime >= AttackConfig::ALIGNED_DEBOUNCE_MS) {
+            } else if (headingError <= AttackConfig::ENTER_ALIGNMENT_TOLERANCE) {
                 transitionToTrackingStage(TrackingStage::TRANSITION);
             }
             return;
 
         case TrackingStage::TRANSITION:
-            if (transitionTime < AttackConfig::TRANSITION_MIN_MS) return;
-
             if (distanceError > AttackConfig::ORBIT_EXIT_TOLERANCE) {
                 transitionToTrackingStage(TrackingStage::APPROACH);
             } else if (headingError > AttackConfig::EXIT_ALIGNMENT_TOLERANCE) {
                 transitionToTrackingStage(TrackingStage::ORBIT);
-            } else if (signalStrength >= AttackConfig::CAPTURED_DISTANCE) {
+            } else if (headingError > AttackConfig::ENTER_ALIGNMENT_TOLERANCE) {
+                alignedTime = 0;
+            } else if (alignedTime >= AttackConfig::ALIGNED_DEBOUNCE_MS) {
                 transitionToTrackingStage(TrackingStage::CAPTURED);
-            } else if (transitionTime >= AttackConfig::TRANSITION_TIMEOUT) {
-                transitionToTrackingStage(TrackingStage::SEARCH);
             }
             return;
 
         case TrackingStage::CAPTURED:
             if (headingError > AttackConfig::EXIT_ALIGNMENT_TOLERANCE) {
                 transitionToTrackingStage(TrackingStage::ORBIT);
-            } else if (signalStrength < AttackConfig::CAPTURED_EXIT_DISTANCE) {
-                transitionToTrackingStage(TrackingStage::TRANSITION);
             }
             return;
     }
@@ -439,6 +423,8 @@ float Strategy::calculateAngleToGoal() const {
 }
 
 void Strategy::orbitAroundBall(const float dt, const float targetBallHeading) {
+    robot.targetHeading = constrain(calculateAngleToGoal(), 
+        -AttackConfig::MAX_GOAL_TILT, AttackConfig::MAX_GOAL_TILT);
     float ballDirection = robot.irSensor.getDirectionDegrees();
     float ballStrength = robot.irSensor.getSignalStrength();
     const float targetRobotBearing = util::wrapAngle180(
@@ -469,24 +455,7 @@ void Strategy::orbitAroundPoint(const float dt, const float targetHeading,
 }
 
 void Strategy::pushCapturedBallToGoal(const float dt) {
-    const float goalHeading = calculateAngleToGoal();
-    robot.targetHeading = goalHeading;
-
-    const float headingError = abs(util::wrapAngle180(
-        goalHeading - robot.imu.getRelativeYaw()));
-    const float alignmentFactor = constrain(
-        1.0f - headingError / AttackConfig::GOAL_ALIGNMENT_FULL_SPEED_DEG,
-        AttackConfig::GOAL_ALIGNMENT_MIN_SPEED_FACTOR, 1.0f);
-
-    const float rampTime = 
-        max(static_cast<float>(alignedTime) - AttackConfig::ALIGNED_DEBOUNCE_MS, 0.0f);
-    const float rampFactor = 
-        min((rampTime + 100.0f) / AttackConfig::SPEED_RAMP_MAX_MS, 1.0f);
-    const float speed =
-        (AttackConfig::CAPTURED_MIN_SPD +
-         rampFactor * (AttackConfig::CAPTURED_MAX_SPD -
-                       AttackConfig::CAPTURED_MIN_SPD)) *
-        alignmentFactor;
+    const float speed = AttackConfig::CAPTURED_MAX_SPD;
 
     const float ballDirection =
         abs(robot.irSensor.getDirectionDegrees()) <=

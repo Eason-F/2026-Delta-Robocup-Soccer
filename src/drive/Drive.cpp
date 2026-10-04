@@ -22,10 +22,23 @@ void Drive::moveInDirection(const float &dt, const int directionDegrees, const i
     // Project translation onto wheels mounted at 45-degree intervals.
     lastDirection = directionDegrees;
     lastTranslationRpm = rpm;
-    motor1.setMotorRPM(cos(radians(directionDegrees + 315)) * rpm + rotationRpm, dt);
-    motor2.setMotorRPM(cos(radians(directionDegrees + 225)) * rpm + rotationRpm, dt);
-    motor3.setMotorRPM(cos(radians(directionDegrees + 45 )) * rpm + rotationRpm, dt);
-    motor4.setMotorRPM(cos(radians(directionDegrees + 135)) * rpm + rotationRpm, dt);
+    double speeds[4] = {
+        cos(radians(directionDegrees + 315.0)) * rpm,
+        cos(radians(directionDegrees + 225.0)) * rpm,
+        cos(radians(directionDegrees + 45.0)) * rpm,
+        cos(radians(directionDegrees + 135.0)) * rpm,
+    };
+
+    float maxSpeed = 0;
+    for (int i = 0; i < 4; i++) {
+        maxSpeed = max(maxSpeed, abs(speeds[i]));
+    };
+    float multiplier = (maxSpeed != 0) ? abs(rpm) / maxSpeed : 1.0;
+
+    motor1.setMotorRPM(speeds[0] * multiplier + rotationRpm, dt);
+    motor2.setMotorRPM(speeds[1] * multiplier + rotationRpm, dt);
+    motor3.setMotorRPM(speeds[2] * multiplier + rotationRpm, dt);
+    motor4.setMotorRPM(speeds[3] * multiplier + rotationRpm, dt);
 }
 
 void Drive::moveInFieldDirection(const float dt, const float direction, const int rpm, const float heading) {

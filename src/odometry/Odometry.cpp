@@ -2,7 +2,7 @@
 #include <odometry/Odometry.hpp>
 #include <util/util.hpp>
 
-sfe_otos_pose2d_t OpticalOdometry::SENSOR_OFFSET = {0.0f, 0.0f, -135.0f};
+sfe_otos_pose2d_t OpticalOdometry::SENSOR_OFFSET = {0.0f, 0.0f, -45.0f};
 
 OpticalOdometry::OpticalOdometry(TwoWire &wirePort) : wirePort(wirePort) {}
 
@@ -63,29 +63,34 @@ void OpticalOdometry::resetPosition() {
 
 void OpticalOdometry::boundaryAlignOdometry(const Vector &boundaryVector, const float &heading) {
     if (boundaryVector.magnitude <= 0.1f) return;
-    const float fieldAngle = boundaryVector.angle + radians(heading);
-    const float normalX = sin(fieldAngle);
-    const float normalY = cos(fieldAngle);
+    // Only snap position when the robot faces near a field axis.
+    if (abs(std::remainder(heading, 90.0f)) > ROBOT_AXIS_ALIGNMENT_TOLERANCE_DEG) return;
 
-    if (max(abs(normalX), abs(normalY)) < BOUNDARY_AXIS_ALIGNMENT_MIN) return;
-    float boundaryX = 
-        FieldConstants::fieldWidth / 2 - 
-        FieldConstants::boundaryInset - 
-        FieldConstants::boundaryLineWidth - 
+    // The sensor angle starts at robot-forward and increases toward robot-right.
+    const float boundaryBearing = boundaryVector.angle + radians(heading);
+    const float boundaryDirectionX = sin(boundaryBearing);
+    const float boundaryDirectionY = cos(boundaryBearing);
+    if (max(abs(boundaryDirectionX), abs(boundaryDirectionY)) < BOUNDARY_AXIS_ALIGNMENT_MIN) return;
+
+    const float boundaryX = FieldConstants::fieldWidth / 2 -
+        FieldConstants::boundaryInset - FieldConstants::boundaryLineWidth -
         BOUNDARY_CORRECTION_OFFSET;
-    float boundaryY = 
-        FieldConstants::fieldLength / 2 - 
-        FieldConstants::boundaryInset - 
-        FieldConstants::boundaryLineWidth -
+    const float boundaryY = FieldConstants::fieldLength / 2 -
+        FieldConstants::boundaryInset - FieldConstants::boundaryLineWidth -
         BOUNDARY_CORRECTION_OFFSET;
 
-    Position2D corrected = getPosition();
-    if (abs(normalX) > abs(normalY)) {
-        corrected.x = normalX > 0.0f ? boundaryX : -boundaryX;
+    Position2D correctedPosition = getPosition();
+    float correction;
+    if (abs(boundaryDirectionX) > abs(boundaryDirectionY)) {
+        const float alignedX = boundaryDirectionX > 0.0f ? boundaryX : -boundaryX;
+        correction = alignedX - correctedPosition.x;
+        correctedPosition.x = alignedX;
     } else {
-        corrected.y = normalY > 0.0f ? boundaryY : -boundaryY;
+        const float alignedY = boundaryDirectionY > 0.0f ? boundaryY : -boundaryY;
+        correction = alignedY - correctedPosition.y;
+        correctedPosition.y = alignedY;
     }
-    if (corrected.distanceTo(getPosition()) > BOUNDARY_CORRECTION_TOLERANCE_MAX) return;
 
-    setFieldPosition(corrected, heading);
+    // if (abs(correction) > BOUNDARY_CORRECTION_TOLERANCE_MAX) return;
+    setFieldPosition(correctedPosition, heading);
 }
