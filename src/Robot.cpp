@@ -123,7 +123,7 @@ void Robot::updateMovement(bool running) {
     const float updateDt = max(
         static_cast<float>(elapsedLastUpdateTime) / 1000000.0f, 0.000001f);
     handleHeadingCorrection(updateDt, targetHeading);
-    // boundaryEscaping = handleEdgeDetection(updateDt);
+    boundaryEscaping = handleEdgeDetection(updateDt);
 
     const bool strategyUpdateDue = elapsedLastLoopTime >= LOOP_TIME_MS;
     if (boundaryEscaping || !strategyUpdateDue) {

@@ -278,6 +278,7 @@ void Strategy::goalBallTrack(const float dt) {
 void Strategy::maneuverAroundBall(const float dt, const float targetBallHeading) {
     // Convert the current search state into one drive command.
     checkTrackingStage(dt, targetBallHeading);
+    robot.targetHeading = constrain(calculateAngleToGoal(), -20, 20);
     switch (trackingStage) {
         case TrackingStage::SEARCH: {
             robot.drive.moveToPoint(
@@ -423,7 +424,6 @@ float Strategy::calculateAngleToGoal() const {
 }
 
 void Strategy::orbitAroundBall(const float dt, const float targetBallHeading) {
-    robot.targetHeading = constrain(calculateAngleToGoal(), -40, 40);
     float ballDirection = robot.irSensor.getDirectionDegrees();
     float ballStrength = robot.irSensor.getSignalStrength();
     const float targetRobotBearing = util::wrapAngle180(

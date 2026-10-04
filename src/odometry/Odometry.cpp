@@ -91,6 +91,6 @@ void OpticalOdometry::boundaryAlignOdometry(const Vector &boundaryVector, const 
         correctedPosition.y = alignedY;
     }
 
-    if (abs(correction) > BOUNDARY_CORRECTION_TOLERANCE_MAX) return;
+    // if (abs(correction) > BOUNDARY_CORRECTION_TOLERANCE_MAX) return;
     setFieldPosition(correctedPosition, heading);
 }

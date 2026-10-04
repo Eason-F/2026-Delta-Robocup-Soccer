@@ -47,7 +47,7 @@ class Robot {
 
     private:
         // Scheduler and telemetry timing.
-        static constexpr uint8_t LOOP_TIME_MS = 15;
+        static constexpr uint8_t LOOP_TIME_MS = 10;
         static constexpr uint16_t LOG_INTERVAL_MS = 100;
         uint8_t packetSequence = 0;
         elapsedMillis elapsedLastBluetoothUpdate = 20;
@@ -59,8 +59,8 @@ class Robot {
         
         // Boundary escape timing and last safe direction.
         static constexpr uint8_t BOUNDARY_ESCAPE_SPD = 170;
-        static constexpr uint16_t ESCAPE_DURATION = 500;
-        static constexpr uint16_t ESCAPE_BUFFER = 0;
+        static constexpr uint16_t ESCAPE_DURATION = 10;
+        static constexpr uint16_t ESCAPE_BUFFER = 10;
         elapsedMillis elapsedEscapeTime = ESCAPE_DURATION;
         float escapeDirection = 0.0f;
 

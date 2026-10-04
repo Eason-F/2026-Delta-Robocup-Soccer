@@ -12,7 +12,7 @@
 class Drive {
     public:
         // Per-wheel speed controller tuning.
-        static constexpr float motorKP = 0.3f;
+        static constexpr float motorKP = 1.0f;
         static constexpr float motorKI = 0.001f;
         static constexpr float motorKD = 0.0f;
         static constexpr float motorMax = 255.0f;
