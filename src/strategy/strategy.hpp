@@ -97,21 +97,22 @@ class Strategy {
             static constexpr uint16_t APPROACH_SPD = 200;
 
             // Orbit controller tuning and transition hysteresis.
-            static constexpr uint16_t ORBIT_APPROACH_SPD = 130;
-            static constexpr uint16_t ORBIT_SPD = 160;
+            static constexpr uint16_t ORBIT_APPROACH_SPD = 150;
+            static constexpr uint16_t ORBIT_SPD = 180;
             static constexpr uint16_t ORBIT_DISTANCE = 55;
             static constexpr uint16_t ORBIT_ENTRY_TOLERANCE = 20;
             static constexpr uint16_t ORBIT_EXIT_TOLERANCE = 30;
             static constexpr uint16_t ORBIT_DEBOUNCE_MS = 200;
 
-            static constexpr uint16_t TRANSITION_SPD = 180;
+            static constexpr uint16_t TRANSITION_SPD = 170;
 
             // Captured-ball alignment and forward-speed ramp.
-            static constexpr uint16_t CAPTURED_MAX_SPD = 200;
-            static constexpr uint16_t ENTER_ALIGNMENT_TOLERANCE = 7;
+            static constexpr uint16_t CAPTURED_MAX_SPD = 190;
+            static constexpr uint16_t ENTER_ALIGNMENT_TOLERANCE = 10;
             static constexpr uint16_t EXIT_ALIGNMENT_TOLERANCE = 35;
-            static constexpr uint16_t HEADING_DEADBAND = 10;
+            static constexpr uint16_t HEADING_DEADBAND = 15;
             static constexpr uint16_t ALIGNED_DEBOUNCE_MS = 100;
+            static constexpr uint16_t MAX_GOAL_TILT = 25;
 
         };
 
@@ -124,7 +125,7 @@ class Strategy {
         void transitionToTrackingStage(TrackingStage nextStage);
          
         PIDController approachPID = PIDController(0.5, 0, 0, 0.0, 1.0);
-        PIDController orbitTangentPID = PIDController(0.035, 0, 0.001, -1.0, 1.0);
+        PIDController orbitTangentPID = PIDController(0.045, 0, 0.001, -1.0, 1.0);
         PIDController orbitDistancePID = PIDController(0.3, 0, 0.001, 0.0, 1.0);
 
         struct DefenceConfig {
